@@ -11,7 +11,7 @@ import java.util.List;
 public interface ArtworkConditionRepository extends JpaRepository<ArtworkCondition, Integer> {
 
     // 按状态查询（可选过滤）
-    List<ArtworkCondition> findAllByStatusOrderBySortOrderAsc(Integer status);
+    List<ArtworkCondition> findByStatus(Integer status);
 
     // 检查名称是否已存在（用于新增/修改时去重）
     boolean existsByName(String name);

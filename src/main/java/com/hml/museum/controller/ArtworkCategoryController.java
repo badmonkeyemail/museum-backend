@@ -17,26 +17,9 @@ import java.util.List;
 public class ArtworkCategoryController {
     private final ArtworkCategoryService service;
 
-    //返回所有数据，包括status=0的停用数据
     @GetMapping("/tree")
     public Result<List<ArtworkCategoryDtos.CategoryTree>> tree() {
         return Result.success(ResultCode.SUCCESS, service.tree());
-    }
-
-    //仅返回status=1的数据，无停用数据
-    @GetMapping("/valid-tree")
-    public Result<List<ArtworkCategoryDtos.CategoryTree>> validTree() {
-        return Result.success(ResultCode.SUCCESS, service.validTree());
-    }
-
-    /**
-     * 根据分类节点 ID 获取完整父级路径。
-     *
-     * GET /api/artwork-categories/{id}/path
-     */
-    @GetMapping("/{id}/path")
-    public Result<ArtworkCategoryDtos.CategoryPath> path(@PathVariable Integer id) {
-        return Result.success(ResultCode.SUCCESS, service.getPath(id));
     }
 
     @PostMapping

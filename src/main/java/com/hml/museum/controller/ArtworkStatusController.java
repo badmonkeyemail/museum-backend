@@ -24,11 +24,6 @@ public class ArtworkStatusController {
         return Result.success(ResultCode.SUCCESS, service.list());
     }
 
-    @GetMapping("/valid-list")
-    public Result<List<ArtworkStatusDtos.Response>> validList() {
-        return Result.success(ResultCode.SUCCESS, service.validList());
-    }
-
     /** 查询单个 */
     @GetMapping("/{id}")
     public Result<ArtworkStatusDtos.Response> getById(@PathVariable Integer id) {

@@ -7,6 +7,7 @@ import com.hml.museum.repository.ArtworkRepository;
 import jakarta.persistence.criteria.Path;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -15,14 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * 作品查询服务：
- * 1. 提供前端字段元数据；
- * 2. 提供最多两个条件的 AND 动态查询；
- * 3. 提供 MySQL FULLTEXT 全文查询。
+ * 作品查询服务。
+ *
+ * <p>普通动态查询：最多两个条件，固定 AND。</p>
+ * <p>全文查询：MySQL MATCH(fulltext_content)。</p>
+ * <p>查询结果列表包含 THUMB_64 封面，避免作品表增加图片字段。</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -33,8 +36,8 @@ public class ArtworkSearchService {
     private static final int NOT_DELETED = 0;
 
     private final ArtworkRepository artworkRepository;
+    private final ArtworkCoverService coverService;
 
-    /** 返回前端可以查询的字段定义。 */
     @Transactional(readOnly = true)
     public List<ArtworkSearchDtos.FieldMetadata> getFieldMetadata() {
         return java.util.Arrays.stream(ArtworkSearchField.values())
@@ -48,11 +51,9 @@ public class ArtworkSearchService {
                 .toList();
     }
 
-    /**
-     * 最多两个条件 AND 查询。
-     */
+    /** 最多两个条件 AND 查询，并批量补充 THUMB_64 封面。 */
     @Transactional(readOnly = true)
-    public Page<ArtworkDtos.Response> search(
+    public Page<ArtworkDtos.ListResponse> search(
             ArtworkSearchDtos.SearchRequest request
     ) {
         validateSearchRequest(request);
@@ -72,15 +73,20 @@ public class ArtworkSearchService {
                 Sort.by(Sort.Direction.DESC, "id")
         );
 
-        return artworkRepository.findAll(specification, pageable)
-                .map(this::toResponse);
+        Page<Artwork> page = artworkRepository.findAll(specification, pageable);
+        List<Long> ids = page.getContent().stream().map(Artwork::getId).toList();
+        Map<Long, String> covers = coverService.getCoverUrls(ids, "THUMB_64");
+
+        List<ArtworkDtos.ListResponse> content = page.getContent().stream()
+                .map(a -> toListResponse(a, covers.get(a.getId())))
+                .toList();
+
+        return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
-    /**
-     * MySQL FULLTEXT 全文查询。
-     */
+    /** MySQL FULLTEXT 全文查询，并批量补充 THUMB_64 封面。 */
     @Transactional(readOnly = true)
-    public Page<ArtworkDtos.Response> fullTextSearch(
+    public Page<ArtworkDtos.ListResponse> fullTextSearch(
             String keyword,
             int page,
             int size
@@ -88,27 +94,37 @@ public class ArtworkSearchService {
         if (isBlank(keyword)) {
             throw new IllegalArgumentException("全文搜索关键字不能为空");
         }
-
         if (page < 0) {
             throw new IllegalArgumentException("page不能小于0");
         }
 
         int actualSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
-
         PageRequest pageable = PageRequest.of(
                 page,
                 actualSize,
                 Sort.by(Sort.Direction.DESC, "id")
         );
 
-        return artworkRepository
-                .fullTextSearch(keyword.trim(), pageable)
-                .map(this::toResponse);
+        Page<Artwork> pageResult = artworkRepository
+                .fullTextSearch(keyword.trim(), pageable);
+
+        List<Long> ids = pageResult.getContent().stream().map(Artwork::getId).toList();
+        Map<Long, String> covers = coverService.getCoverUrls(ids, "THUMB_64");
+
+        List<ArtworkDtos.ListResponse> content = pageResult.getContent().stream()
+                .map(a -> toListResponse(a, covers.get(a.getId())))
+                .toList();
+
+        return new PageImpl<>(content, pageable, pageResult.getTotalElements());
     }
 
     private Specification<Artwork> buildSpecification(
             ArtworkSearchDtos.Condition condition
     ) {
+        if (condition == null) {
+            throw new IllegalArgumentException("查询条件不能为空");
+        }
+
         ArtworkSearchField field = ArtworkSearchField.from(condition.field().trim());
         SearchOperator operator = condition.operator();
 
@@ -132,13 +148,11 @@ public class ArtworkSearchService {
             String value2
     ) {
         requireValue1(field, value1);
-
         if (!isBlank(value2)) {
             throw new IllegalArgumentException("字符串字段不需要第二个查询值");
         }
 
         String value = escapeLike(value1.trim());
-
         return (root, query, cb) -> {
             Path<String> path = root.get(field.getJavaField());
             return switch (operator) {
@@ -163,9 +177,7 @@ public class ArtworkSearchService {
                     "字段[" + field.getDisplay() + "]只支持EQUALS"
             );
         }
-
         requireValue1(field, value1);
-
         if (!isBlank(value2)) {
             throw new IllegalArgumentException("数字/引用字段不需要第二个查询值");
         }
@@ -205,7 +217,6 @@ public class ArtworkSearchService {
     ) {
         if (operator == SearchOperator.EQUALS) {
             requireValue1(field, value1);
-
             if (!isBlank(value2)) {
                 throw new IllegalArgumentException("EQUALS不需要第二个日期");
             }
@@ -232,12 +243,6 @@ public class ArtworkSearchService {
         );
     }
 
-    /**
-     * DATE + BETWEEN 的规则：
-     * value1=null, value2!=null -> 小于 value2 所在日期
-     * value1!=null, value2=null -> 大于 value1 所在日期
-     * 两者都有 -> 包含两个日期的整个日期范围
-     */
     private Specification<Artwork> buildDateBetweenSpecification(
             ArtworkSearchField field,
             String value1,
@@ -253,7 +258,6 @@ public class ArtworkSearchService {
         if (blank1) {
             LocalDate upper = parseDate(field, value2);
             LocalDateTime end = upper.atStartOfDay();
-
             return (root, query, cb) ->
                     cb.lessThan(root.get(field.getJavaField()), end);
         }
@@ -261,14 +265,12 @@ public class ArtworkSearchService {
         if (blank2) {
             LocalDate lower = parseDate(field, value1);
             LocalDateTime start = lower.plusDays(1).atStartOfDay();
-
             return (root, query, cb) ->
                     cb.greaterThanOrEqualTo(root.get(field.getJavaField()), start);
         }
 
         LocalDate lower = parseDate(field, value1);
         LocalDate upper = parseDate(field, value2);
-
         if (lower.isAfter(upper)) {
             throw new IllegalArgumentException("BETWEEN的开始日期不能晚于结束日期");
         }
@@ -288,7 +290,6 @@ public class ArtworkSearchService {
                     "字段[" + field.getDisplay() + "]日期不能为空"
             );
         }
-
         try {
             return LocalDate.parse(value.trim());
         } catch (Exception e) {
@@ -329,25 +330,24 @@ public class ArtworkSearchService {
         return value == null || value.trim().isEmpty();
     }
 
-    private ArtworkDtos.Response toResponse(Artwork a) {
-        return new ArtworkDtos.Response(
+    private ArtworkDtos.ListResponse toListResponse(
+            Artwork a,
+            String coverUrl
+    ) {
+        return new ArtworkDtos.ListResponse(
                 a.getId(),
                 a.getName(),
-                a.getPrimaryCategoryId(),
+                a.getAuthor(),
                 a.getCreationStartTime(),
                 a.getCreationEndTime(),
                 a.getConditionId(),
-                a.getDimensions(),
                 a.getPrice(),
-                a.getAuthor(),
-                a.getRegistrationNo(),
-                a.getInscription(),
-                a.getSummary(),
                 a.getStatusId(),
+                a.getPrimaryCategoryId(),
                 a.getLocationCategoryId(),
                 a.getSpecificLocation(),
-                a.getSearchKeywords(),
-                a.getVersion()
+                a.getVersion(),
+                coverUrl
         );
     }
 }

@@ -10,58 +10,126 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.*;
-
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 从 HIGH_RES 优先生成三个缩略图；实际生产环境建议异步 Worker 执行。
+ * 从 HIGH_RES 优先生成三个缩略图。
+ * 实际生产环境建议改成异步任务，但当前接口保持同步，便于开发调试。
  */
 @Service
 @RequiredArgsConstructor
 public class MultimediaThumbnailService {
+
+    private static final int ACTIVE = 1;
+    private static final int NOT_DELETED = 0;
+
     private final MultimediaVariantRepository repo;
     private final MultimediaRepository multimediaRepo;
     private final ImageStorageService storage;
     private final ArtworkHistoryRepository historyRepo;
 
-    public List<MultimediaVariant> generate(Long multimediaId) {
-        MultimediaVariant source = repo.findByMultimediaIdAndVariantTypeAndDeleted(multimediaId, "HIGH_RES", 0).orElseGet(() -> repo.findByMultimediaIdAndVariantTypeAndDeleted(multimediaId, "ORIGINAL", 0).orElseThrow(() -> new IllegalStateException("不存在原图或高保真图")));
-        Multimedia media = multimediaRepo.findByIdAndDeleted(multimediaId, 0).orElseThrow();
-        try (InputStream in = storage.get(source.getObjectKey())) {
+    public List<MultimediaVariant> generate(
+            Long artworkId,
+            Long multimediaId
+    ) {
+        Multimedia media = multimediaRepo
+                .findByIdAndArtworkIdAndDeleted(
+                        multimediaId,
+                        artworkId,
+                        NOT_DELETED
+                )
+                .orElseThrow(() -> new IllegalStateException("多媒体不存在"));
+
+        if (!Integer.valueOf(MediaTypeIds.PHOTO).equals(media.getMultimediaTypeId())) {
+            throw new IllegalArgumentException("只有照片可以生成缩略图");
+        }
+
+        MultimediaVariant source = repo
+                .findByMultimediaIdAndVariantTypeAndDeletedAndStatus(
+                        multimediaId,
+                        "HIGH_RES",
+                        NOT_DELETED,
+                        ACTIVE
+                )
+                .orElseGet(() -> repo
+                        .findByMultimediaIdAndVariantTypeAndDeletedAndStatus(
+                                multimediaId,
+                                "ORIGINAL",
+                                NOT_DELETED,
+                                ACTIVE
+                        )
+                        .orElseThrow(() ->
+                                new IllegalStateException("不存在可用于生成缩略图的原图或高保真图")
+                        ));
+
+        try (var in = storage.get(source.getObjectKey())) {
             BufferedImage image = ImageIO.read(in);
-            if (image == null) throw new IllegalStateException("图片无法解析");
+            if (image == null) {
+                throw new IllegalStateException("图片无法解析");
+            }
+
             List<MultimediaVariant> result = new ArrayList<>();
             for (int max : new int[]{1024, 256, 64}) {
                 BufferedImage out = resize(image, max);
+
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-                ImageIO.write(out, "jpg", bytes);
+                boolean written = ImageIO.write(out, "jpg", bytes);
+                if (!written) {
+                    throw new IllegalStateException("JPEG缩略图编码失败");
+                }
+
                 byte[] data = bytes.toByteArray();
                 String type = "THUMB_" + max;
-                String key = "artwork/" + media.getArtworkId() + "/multimedia/" + multimediaId + "/" + type.toLowerCase() + ".jpg";
-                storage.putBytes(key, new ByteArrayInputStream(data), data.length, "image/jpeg");
-                MultimediaVariant v = repo.findByMultimediaIdAndVariantTypeAndDeleted(multimediaId, type, 0).orElse(new MultimediaVariant());
-                v.setMultimediaId(multimediaId);
-                v.setVariantType(type);
-                v.setObjectKey(key);
-                v.setContentType("image/jpeg");
-                v.setFileName(type + ".jpg");
-                v.setFileSize((long) data.length);
-                v.setWidth(out.getWidth());
-                v.setHeight(out.getHeight());
-                v.setDeleted(0);
-                v.setStatus(1);
-                result.add(repo.save(v));
+                String key = "artwork/"
+                        + artworkId
+                        + "/multimedia/"
+                        + multimediaId
+                        + "/"
+                        + type.toLowerCase()
+                        + ".jpg";
+
+                storage.putBytes(
+                        key,
+                        new ByteArrayInputStream(data),
+                        data.length,
+                        "image/jpeg"
+                );
+
+                MultimediaVariant variant = repo
+                        .findByMultimediaIdAndVariantType(multimediaId, type)
+                        .orElseGet(MultimediaVariant::new);
+
+                variant.setMultimediaId(multimediaId);
+                variant.setVariantType(type);
+                variant.setObjectKey(key);
+                variant.setContentType("image/jpeg");
+                variant.setFileName(type + ".jpg");
+                variant.setFileSize((long) data.length);
+                variant.setWidth(out.getWidth());
+                variant.setHeight(out.getHeight());
+                variant.setChecksumSha256(sha256(data));
+                variant.setDeleted(NOT_DELETED);
+                variant.setStatus(ACTIVE);
+
+                result.add(repo.save(variant));
             }
-            ArtworkHistory h = new ArtworkHistory();
-            h.setArtworkId(media.getArtworkId());
-            h.setOperationType("GENERATE_THUMBNAILS");
-            h.setRelatedMultimediaId(multimediaId);
-            h.setOperationSummary("生成1024/256/64缩略图");
-            historyRepo.save(h);
+
+            ArtworkHistory history = new ArtworkHistory();
+            history.setArtworkId(artworkId);
+            history.setOperationType("GENERATE_THUMBNAILS");
+            history.setRelatedMultimediaId(multimediaId);
+            history.setOperationSummary("生成1024/256/64缩略图");
+            historyRepo.save(history);
+
             return result;
         } catch (IOException e) {
             throw new IllegalStateException("生成缩略图失败", e);
@@ -69,17 +137,59 @@ public class MultimediaThumbnailService {
     }
 
     private BufferedImage resize(BufferedImage src, int max) {
-        double scale = Math.min(1.0, max / (double) Math.max(src.getWidth(), src.getHeight()));
-        int w = Math.max(1, (int) Math.round(src.getWidth() * scale));
-        int h = Math.max(1, (int) Math.round(src.getHeight() * scale));
-        BufferedImage dst = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        double scale = Math.min(
+                1.0,
+                max / (double) Math.max(
+                        src.getWidth(),
+                        src.getHeight()
+                )
+        );
+
+        int width = Math.max(
+                1,
+                (int) Math.round(src.getWidth() * scale)
+        );
+
+        int height = Math.max(
+                1,
+                (int) Math.round(src.getHeight() * scale)
+        );
+
+        BufferedImage dst = new BufferedImage(
+                width,
+                height,
+                BufferedImage.TYPE_INT_RGB
+        );
+
         Graphics2D g = dst.createGraphics();
         try {
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.drawImage(src, 0, 0, w, h, null);
+            g.setRenderingHint(
+                    RenderingHints.KEY_INTERPOLATION,
+                    RenderingHints.VALUE_INTERPOLATION_BILINEAR
+            );
+            g.setRenderingHint(
+                    RenderingHints.KEY_RENDERING,
+                    RenderingHints.VALUE_RENDER_QUALITY
+            );
+            g.drawImage(src, 0, 0, width, height, null);
         } finally {
             g.dispose();
         }
+
         return dst;
+    }
+
+    private String sha256(byte[] data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(data);
+            StringBuilder sb = new StringBuilder(bytes.length * 2);
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256不可用", e);
+        }
     }
 }

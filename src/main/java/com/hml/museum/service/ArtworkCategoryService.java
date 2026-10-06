@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 作品分类服务
@@ -36,21 +35,10 @@ public class ArtworkCategoryService {
 
     private final ArtworkCategoryRepository repo;
 
-    //查询分类树 返回 所有状态正常的status的分类。
-    @Transactional(readOnly = true)
-    public List<ArtworkCategoryDtos.CategoryTree> validTree() {
-        List<ArtworkCategory> all = repo.findAllByStatusOrderByParentIdAscSortOrderAscIdAsc(STATUS_ENABLED);
-        return makeTree(all);
-    }
-
     //查询分类树 返回 所有status的分类。
     @Transactional(readOnly = true)
     public List<ArtworkCategoryDtos.CategoryTree> tree() {
         List<ArtworkCategory> all = repo.findAllByOrderByParentIdAscSortOrderAscIdAsc();
-        return makeTree(all);
-    }
-
-    private List<ArtworkCategoryDtos.CategoryTree> makeTree(List<ArtworkCategory> all) {
         // id -> TreeNode
         Map<Integer, ArtworkCategoryDtos.CategoryTree> nodeMap =
                 new LinkedHashMap<>();
@@ -97,6 +85,7 @@ public class ArtworkCategoryService {
 
         return roots;
     }
+
 
     /**
      * 根据 ID 查询分类
@@ -637,86 +626,6 @@ public class ArtworkCategoryService {
                 category.getLevel(),
                 category.getSortOrder(),
                 category.getStatus()
-        );
-    }
-
-    /**
-     * 根据分类节点 ID 获取完整父级路径。
-     */
-    @Transactional(readOnly = true)
-    public ArtworkCategoryDtos.CategoryPath getPath(Integer id) {
-
-        if (id == null) {
-            throw new IllegalArgumentException(
-                    "分类ID不能为空"
-            );
-        }
-
-        List<ArtworkCategoryDtos.PathNode> nodes =
-                new ArrayList<>();
-
-        Integer currentId = id;
-
-        // 防止异常数据导致死循环
-        Set<Integer> visited = new HashSet<>();
-
-        while (currentId != null) {
-
-            // 防御性检查循环引用
-            if (!visited.add(currentId)) {
-                throw new IllegalStateException(
-                        "分类存在循环父子关系"
-                );
-            }
-
-            ArtworkCategory category =
-                    repo.findByIdAndStatus(
-                            currentId,
-                            STATUS_ENABLED
-                    ).orElseThrow(() ->
-                            new NoSuchElementException("分类不存在或已停用：" + id)
-                    );
-
-            nodes.add(
-                    new ArtworkCategoryDtos.PathNode(
-                            category.getId(),
-                            category.getName(),
-                            category.getLevel()
-                    )
-            );
-
-            currentId = category.getParentId();
-        }
-
-        /*
-         * 当前查询顺序是：
-         *
-         * 当前节点
-         * 父节点
-         * 爷爷节点
-         * ...
-         *
-         * 需要反转成：
-         *
-         * 根节点
-         * ...
-         * 当前节点
-         */
-        Collections.reverse(nodes);
-
-        String path =
-                nodes.stream()
-                        .map(
-                                ArtworkCategoryDtos.PathNode::name
-                        )
-                        .collect(
-                                Collectors.joining("-")
-                        );
-
-        return new ArtworkCategoryDtos.CategoryPath(
-                id,
-                nodes,
-                path
         );
     }
 }

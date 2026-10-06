@@ -12,7 +12,7 @@ public interface ArtworkStatusRepository extends JpaRepository<ArtworkStatus, In
     //Optional<ArtworkStatus> findByCode(String code);
 
     // 按状态查询（过滤）
-    List<ArtworkStatus> findAllByStatusOrderBySortOrderAsc(Integer status);
+    //List<ArtworkStatus> findByStatus(Integer status);
 
     // 检查名称是否已存在（用于新增/修改时去重）
     boolean existsByName(String name);

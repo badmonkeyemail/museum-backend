@@ -14,15 +14,30 @@ import java.util.Map;
 @RequestMapping("/api/images")
 @RequiredArgsConstructor
 public class ImageController {
+
     private final MultimediaVariantRepository variants;
     private final ImageStorageService storage;
 
     @GetMapping("/variants/{variantId}/url")
     public Map<String, String> url(@PathVariable Long variantId) {
-        MultimediaVariant v = variants.findById(variantId).orElseThrow();
-        // 原图/高保真图不直接暴露 URL；后续接审批授权后在 DownloadService 中生成短期 URL。
-        if (!v.getVariantType().startsWith("THUMB_"))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "高清图片/原图需要审批授权");
-        return Map.of("url", storage.createDownloadUrl(v.getObjectKey()));
+        MultimediaVariant v = variants
+                .findByIdAndDeletedAndStatus(variantId, 0, 1)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "图片版本不存在"
+                ));
+
+        // 原图/高保真图不直接暴露 URL；后续接审批授权后再生成短期 URL。
+        if (!v.getVariantType().startsWith("THUMB_")) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "高清图片/原图需要审批授权"
+            );
+        }
+
+        return Map.of(
+                "url",
+                storage.createDownloadUrl(v.getObjectKey())
+        );
     }
 }

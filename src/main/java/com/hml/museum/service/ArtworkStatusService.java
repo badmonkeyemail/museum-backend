@@ -30,15 +30,6 @@ public class ArtworkStatusService {
                 .toList();
     }
 
-    // 仅返回status=1的数据
-    @Transactional(readOnly = true)
-    public List<ArtworkStatusDtos.Response> validList() {
-        return statusRepository.findAllByStatusOrderBySortOrderAsc(1)
-                .stream()
-                .map(this::toResponse)
-                .toList();
-    }
-
     /** 实体 → 响应 DTO */
     private ArtworkStatusDtos.Response toResponse(ArtworkStatus e) {
         return new ArtworkStatusDtos.Response(e.getId(), e.getName(), e.getSortOrder(), e.getStatus());

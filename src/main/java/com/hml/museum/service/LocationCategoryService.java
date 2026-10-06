@@ -1,8 +1,6 @@
 package com.hml.museum.service;
 
-import com.hml.museum.dto.ArtworkCategoryDtos;
 import com.hml.museum.dto.LocationCategoryDtos;
-import com.hml.museum.entity.ArtworkCategory;
 import com.hml.museum.entity.LocationCategory;
 import com.hml.museum.repository.LocationCategoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,21 +20,10 @@ public class LocationCategoryService {
 
     private final LocationCategoryRepository repo;
 
-    //查询分类树 返回 所有数据
+    //查询分类树 返回 所有status的分类。
     @Transactional(readOnly = true)
     public List<LocationCategoryDtos.CategoryTree> tree() {
         List<LocationCategory> all = repo.findAllByOrderByParentIdAscSortOrderAscIdAsc();
-        return makeTree(all);
-    }
-
-    //查询分类树 返回 status=1的数据
-    @Transactional(readOnly = true)
-    public List<LocationCategoryDtos.CategoryTree> validTree() {
-        List<LocationCategory> all = repo.findAllByStatusOrderByParentIdAscSortOrderAscIdAsc(STATUS_ENABLED);
-        return makeTree(all);
-    }
-
-    private List<LocationCategoryDtos.CategoryTree> makeTree(List<LocationCategory> all) {
         // id -> TreeNode
         Map<Integer, LocationCategoryDtos.CategoryTree> nodeMap =
                 new LinkedHashMap<>();
@@ -84,6 +70,7 @@ public class LocationCategoryService {
 
         return roots;
     }
+
 
     /**
      * 根据 ID 查询分类
@@ -626,86 +613,4 @@ public class LocationCategoryService {
                 category.getStatus()
         );
     }
-
-    /**
-     * 根据分类节点 ID 获取完整父级路径。
-     */
-    @Transactional(readOnly = true)
-    public LocationCategoryDtos.CategoryPath getPath(Integer id) {
-
-        if (id == null) {
-            throw new IllegalArgumentException(
-                    "分类ID不能为空"
-            );
-        }
-
-        List<LocationCategoryDtos.PathNode> nodes =
-                new ArrayList<>();
-
-        Integer currentId = id;
-
-        // 防止异常数据导致死循环
-        Set<Integer> visited = new HashSet<>();
-
-        while (currentId != null) {
-
-            // 防御性检查循环引用
-            if (!visited.add(currentId)) {
-                throw new IllegalStateException(
-                        "分类存在循环父子关系"
-                );
-            }
-
-            LocationCategory category =
-                    repo.findByIdAndStatus(
-                            currentId,
-                            STATUS_ENABLED
-                    ).orElseThrow(() ->
-                            new NoSuchElementException("分类不存在或已停用：" + id)
-                    );
-
-            nodes.add(
-                    new LocationCategoryDtos.PathNode(
-                            category.getId(),
-                            category.getName(),
-                            category.getLevel()
-                    )
-            );
-
-            currentId = category.getParentId();
-        }
-
-        /*
-         * 当前查询顺序是：
-         *
-         * 当前节点
-         * 父节点
-         * 爷爷节点
-         * ...
-         *
-         * 需要反转成：
-         *
-         * 根节点
-         * ...
-         * 当前节点
-         */
-        Collections.reverse(nodes);
-
-        String path =
-                nodes.stream()
-                        .map(
-                                LocationCategoryDtos.PathNode::name
-                        )
-                        .collect(
-                                Collectors.joining("-")
-                        );
-
-        return new LocationCategoryDtos.CategoryPath(
-                id,
-                nodes,
-                path
-        );
-    }
-
-
 }

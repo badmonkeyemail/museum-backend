@@ -28,17 +28,11 @@ public class ArtworkConditionController {
      *     response.setHeader(HttpHeaders.EXPIRES, "0");
      * */
     @GetMapping
-//    public Result<List<ArtworkConditionDtos.Response>> list(HttpServletResponse response) {
-//        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
-//        response.setHeader(HttpHeaders.PRAGMA, "no-cache");
-//        response.setHeader(HttpHeaders.EXPIRES, "0");
-    public Result<List<ArtworkConditionDtos.Response>> list() {
+    public Result<List<ArtworkConditionDtos.Response>> list(HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+        response.setHeader(HttpHeaders.PRAGMA, "no-cache");
+        response.setHeader(HttpHeaders.EXPIRES, "0");
         return Result.success(ResultCode.SUCCESS, service.list());
-    }
-
-    @GetMapping("/valid-list")
-    public Result<List<ArtworkConditionDtos.Response>> validList() {
-        return Result.success(ResultCode.SUCCESS, service.validList());
     }
 
     /** 查询单个 */

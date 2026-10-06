@@ -24,13 +24,13 @@ public class ArtworkController {
     }
 
     @GetMapping
-    public Result<Page<ArtworkDtos.Response>> page(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+    public Result<Page<ArtworkDtos.ListResponse>> page(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         int actualSize = Math.min(Math.max(size, 1), 200);
         return Result.success(ResultCode.SUCCESS, service.page(PageRequest.of(page, actualSize, Sort.by("id").descending())));
     }
 
     @GetMapping("/full-text-search")
-    public Result<Page<ArtworkDtos.Response>> fullTextSearch(
+    public Result<Page<ArtworkDtos.ListResponse>> fullTextSearch(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {

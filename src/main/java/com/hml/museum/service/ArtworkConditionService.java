@@ -27,15 +27,6 @@ public class ArtworkConditionService {
                 .toList();
     }
 
-    // 仅返回status=1的数据
-    @Transactional(readOnly = true)
-    public List<ArtworkConditionDtos.Response> validList() {
-        return conditionRepository.findAllByStatusOrderBySortOrderAsc(1)
-                .stream()
-                .map(this::toResponse)
-                .toList();
-    }
-
     /** 按 id 查询单个 */
     @Transactional(readOnly = true)
     public ArtworkConditionDtos.Response getById(Integer id) {

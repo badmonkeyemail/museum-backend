@@ -30,7 +30,7 @@ public class ArtworkSearchController {
 
     /** POST /api/artworks/search：最多两个条件，条件之间固定 AND。 */
     @PostMapping
-    public Result<Page<ArtworkDtos.Response>> search(
+    public Result<Page<ArtworkDtos.ListResponse>> search(
             @Valid @RequestBody ArtworkSearchDtos.SearchRequest request
     ) {
         return Result.success(
@@ -39,11 +39,9 @@ public class ArtworkSearchController {
         );
     }
 
-    /**
-     * GET /api/artworks/search/full-text?keyword=...
-     */
+    /** GET /api/artworks/search/full-text?keyword=... */
     @GetMapping("/full-text")
-    public Result<Page<ArtworkDtos.Response>> fullTextSearch(
+    public Result<Page<ArtworkDtos.ListResponse>> fullTextSearch(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
