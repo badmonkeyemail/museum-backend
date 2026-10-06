@@ -59,6 +59,7 @@ public class MultimediaService {
     private final MediaTypeRepository typeRepo;
     private final ArtworkRepository artworkRepo;
     private final ImageStorageService storage;
+    private final ArtworkCoverService coverService;
     private final ArtworkHistoryRepository historyRepo;
     private final ObjectMapper mapper;
 
@@ -213,12 +214,7 @@ public class MultimediaService {
             Long multimediaId
     ) {
         setCoverLocked(artworkId, multimediaId);
-
-        return new MultimediaDtos.CoverResponse(
-                artworkId,
-                multimediaId,
-                1
-        );
+        return coverService.resolve(artworkId, MultimediaVariantTypes.THUMB_256);
     }
 
     /**
