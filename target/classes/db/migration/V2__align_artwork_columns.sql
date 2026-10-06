@@ -1,0 +1,12 @@
+-- 对已有数据库执行的 artwork 字段统一。
+-- V1 新建数据库已经使用相同定义；V2 主要兼容旧数据库升级。
+ALTER TABLE artwork
+    MODIFY COLUMN name VARCHAR(200) NOT NULL COMMENT '作品名称',
+    MODIFY COLUMN create_start_time DATETIME(3) DEFAULT NULL COMMENT '创作开始时间',
+    MODIFY COLUMN create_end_time DATETIME(3) DEFAULT NULL COMMENT '创作结束时间',
+    MODIFY COLUMN registration_no VARCHAR(100) DEFAULT NULL COMMENT '作品登记号',
+    MODIFY COLUMN price VARCHAR(500) DEFAULT NULL COMMENT '作品价格',
+    MODIFY COLUMN dimensions VARCHAR(500) DEFAULT NULL COMMENT '作品尺寸',
+    MODIFY COLUMN author VARCHAR(200) DEFAULT NULL COMMENT '作者',
+    MODIFY COLUMN specific_location VARCHAR(255) DEFAULT NULL COMMENT '具体位置',
+    MODIFY COLUMN location_category_id INT UNSIGNED DEFAULT NULL COMMENT '位置分类';

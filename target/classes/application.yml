@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: museum
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/hml?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:Passwd12345678!}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1                # 基线版本号，默认1
+    locations: classpath:db/migration
+
+server:
+  port: ${SERVER_PORT:9000}
+
+museum:
+  storage:
+    endpoint: ${RUSTFS_ENDPOINT:http://127.0.0.1:19000}
+    access-key: ${RUSTFS_ACCESS_KEY:rustfsadmin}
+    secret-key: ${RUSTFS_SECRET_KEY:rustfsadmin}
+    region: ${RUSTFS_REGION:us-east-1}
+    bucket: ${RUSTFS_BUCKET:museum-images}
+    presign-minutes: ${RUSTFS_PRESIGN_MINUTES:30}
+    upload-expiry-minutes: ${RUSTFS_UPLOAD_EXPIRY_MINUTES:60}
+
+  backup:
+    mysql-backup-dir: ${MYSQL_BACKUP_DIR:./backup/mysql}
+    mc-command: ${MC_COMMAND:mc}
+    backup-rustfs-endpoint: ${BACKUP_RUSTFS_ENDPOINT:http://localhost:9100}
+    backup-rustfs-bucket: ${BACKUP_RUSTFS_BUCKET:museum-images-backup}
