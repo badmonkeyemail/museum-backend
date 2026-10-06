@@ -57,7 +57,7 @@ public final class ArtworkDtos {
             Integer locationCategoryId,
             String specificLocation,
             Integer version,
-            CoverResponse cover
+            MultimediaDtos.CoverResponse cover
     ) {
     }
 
@@ -81,7 +81,7 @@ public final class ArtworkDtos {
             String specificLocation,
             String searchKeywords,
             Integer version,
-            CoverResponse cover,
+            MultimediaDtos.CoverResponse cover,
             long multimediaCount
     ) {
     }
