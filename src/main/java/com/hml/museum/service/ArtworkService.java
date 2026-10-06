@@ -137,11 +137,11 @@ public class ArtworkService {
                 .map(Artwork::getId)
                 .toList();
 
-        Map<Long, String> coverUrls =
-                coverService.getCoverUrls(artworkIds, "THUMB_64");
+        Map<Long, com.hml.museum.dto.MultimediaDtos.CoverResponse> covers =
+                coverService.resolveBatch(artworkIds, MultimediaVariantTypes.THUMB_64);
 
         List<ArtworkDtos.ListResponse> content = page.getContent().stream()
-                .map(a -> toListResponse(a, coverUrls.get(a.getId())))
+                .map(a -> toListResponse(a, covers.get(a.getId())))
                 .toList();
 
         return new PageImpl<>(content, pageable, page.getTotalElements());
@@ -170,8 +170,8 @@ public class ArtworkService {
     }
 
     private ArtworkDtos.Response toDetailResponse(Artwork artwork) {
-        String coverUrl =
-                coverService.getCoverUrl(artwork.getId(), "THUMB_256");
+        var cover =
+                coverService.resolve(artwork.getId(), MultimediaVariantTypes.THUMB_256);
 
         long multimediaCount =
                 multimediaRepository.countByArtworkIdAndDeletedAndStatus(
@@ -198,14 +198,14 @@ public class ArtworkService {
                 artwork.getSpecificLocation(),
                 artwork.getSearchKeywords(),
                 artwork.getVersion(),
-                coverUrl,
+                cover,
                 multimediaCount
         );
     }
 
     private ArtworkDtos.ListResponse toListResponse(
             Artwork artwork,
-            String coverUrl
+            com.hml.museum.dto.MultimediaDtos.CoverResponse cover
     ) {
         return new ArtworkDtos.ListResponse(
                 artwork.getId(),
@@ -220,7 +220,7 @@ public class ArtworkService {
                 artwork.getLocationCategoryId(),
                 artwork.getSpecificLocation(),
                 artwork.getVersion(),
-                coverUrl
+                cover
         );
     }
 
