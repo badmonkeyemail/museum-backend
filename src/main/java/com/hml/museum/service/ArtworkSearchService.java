@@ -4,6 +4,7 @@ import com.hml.museum.dto.ArtworkDtos;
 import com.hml.museum.dto.ArtworkSearchDtos;
 import com.hml.museum.entity.Artwork;
 import com.hml.museum.repository.ArtworkRepository;
+import com.hml.museum.dto.MultimediaDtos;
 import jakarta.persistence.criteria.Path;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -75,7 +76,7 @@ public class ArtworkSearchService {
 
         Page<Artwork> page = artworkRepository.findAll(specification, pageable);
         List<Long> ids = page.getContent().stream().map(Artwork::getId).toList();
-        Map<Long, com.hml.museum.dto.MultimediaDtos.CoverResponse> covers =
+        Map<Long, MultimediaDtos.CoverResponse> covers =
                 coverService.resolveBatch(ids, MultimediaVariantTypes.THUMB_64);
 
         List<ArtworkDtos.ListResponse> content = page.getContent().stream()
@@ -110,7 +111,8 @@ public class ArtworkSearchService {
                 .fullTextSearch(keyword.trim(), pageable);
 
         List<Long> ids = pageResult.getContent().stream().map(Artwork::getId).toList();
-        Map<Long, String> covers = coverService.getCoverUrls(ids, "THUMB_64");
+        Map<Long, MultimediaDtos.CoverResponse> covers =
+                coverService.getCoverUrls(ids, MultimediaVariantTypes.THUMB_64);
 
         List<ArtworkDtos.ListResponse> content = pageResult.getContent().stream()
                 .map(a -> toListResponse(a, covers.get(a.getId())))
@@ -333,7 +335,7 @@ public class ArtworkSearchService {
 
     private ArtworkDtos.ListResponse toListResponse(
             Artwork a,
-            com.hml.museum.dto.MultimediaDtos.CoverResponse cover
+            MultimediaDtos.CoverResponse cover
     ) {
         return new ArtworkDtos.ListResponse(
                 a.getId(),

@@ -1,6 +1,5 @@
 package com.hml.museum.repository;
 
-import com.hml.museum.entity.ArtworkCategory;
 import com.hml.museum.entity.LocationCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

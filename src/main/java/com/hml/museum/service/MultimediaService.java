@@ -165,7 +165,10 @@ public class MultimediaService {
                 )
                 .orElseThrow(() -> new NoSuchElementException("多媒体不存在"));
 
-        return loadVariants(media.getId());
+        return loadVariants(media.getId())
+                .stream()
+                .map(this::toVariantResponse)
+                .toList();
     }
 
 
@@ -489,16 +492,13 @@ public class MultimediaService {
     // DTO转换
     // ============================================================
 
-    private List<MultimediaDtos.VariantResponse> loadVariants(Long multimediaId) {
+    private List<MultimediaVariant> loadVariants(Long multimediaId) {
         return variantRepo
                 .findByMultimediaIdAndDeletedAndStatusOrderByVariantTypeAsc(
                         multimediaId,
                         NOT_DELETED,
                         STATUS_ACTIVE
-                )
-                .stream()
-                .map(this::toVariantResponse)
-                .toList();
+                );
     }
 
     private MultimediaDtos.Response toResponse(

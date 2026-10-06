@@ -155,17 +155,17 @@ public class ArtworkCoverService {
      * 保留旧接口，供已有代码兼容。
      */
     @Transactional(readOnly = true)
-    public Map<Long, String> getCoverUrls(
+    public Map<Long, MultimediaDtos.CoverResponse> getCoverUrls(
             Collection<Long> artworkIds,
             String variantType
     ) {
         Map<Long, MultimediaDtos.CoverResponse> covers =
                 resolveBatch(artworkIds, variantType);
 
-        Map<Long, String> result = new LinkedHashMap<>();
+        Map<Long, MultimediaDtos.CoverResponse> result = new LinkedHashMap<>();
         for (Map.Entry<Long, MultimediaDtos.CoverResponse> entry : covers.entrySet()) {
             if (entry.getValue().url() != null) {
-                result.put(entry.getKey(), entry.getValue().url());
+                result.put(entry.getKey(), entry.getValue());
             }
         }
         return result;
