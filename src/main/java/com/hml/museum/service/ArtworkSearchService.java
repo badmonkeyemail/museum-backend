@@ -75,7 +75,8 @@ public class ArtworkSearchService {
 
         Page<Artwork> page = artworkRepository.findAll(specification, pageable);
         List<Long> ids = page.getContent().stream().map(Artwork::getId).toList();
-        Map<Long, String> covers = coverService.getCoverUrls(ids, "THUMB_64");
+        Map<Long, com.hml.museum.dto.MultimediaDtos.CoverResponse> covers =
+                coverService.resolveBatch(ids, MultimediaVariantTypes.THUMB_64);
 
         List<ArtworkDtos.ListResponse> content = page.getContent().stream()
                 .map(a -> toListResponse(a, covers.get(a.getId())))
@@ -332,7 +333,7 @@ public class ArtworkSearchService {
 
     private ArtworkDtos.ListResponse toListResponse(
             Artwork a,
-            String coverUrl
+            com.hml.museum.dto.MultimediaDtos.CoverResponse cover
     ) {
         return new ArtworkDtos.ListResponse(
                 a.getId(),
@@ -347,7 +348,7 @@ public class ArtworkSearchService {
                 a.getLocationCategoryId(),
                 a.getSpecificLocation(),
                 a.getVersion(),
-                coverUrl
+                cover
         );
     }
 }
