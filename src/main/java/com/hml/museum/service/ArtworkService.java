@@ -211,15 +211,15 @@ public class ArtworkService {
                 artwork.getId(),
                 artwork.getName(),
                 artwork.getAuthor(),
-                artwork.getCreationStartTime(),
-                artwork.getCreationEndTime(),
+                //artwork.getCreationStartTime(),
+                //artwork.getCreationEndTime(),
                 artwork.getConditionId(),
-                artwork.getPrice(),
+                //artwork.getPrice(),
                 artwork.getStatusId(),
                 artwork.getPrimaryCategoryId(),
                 artwork.getLocationCategoryId(),
                 artwork.getSpecificLocation(),
-                artwork.getVersion(),
+                //artwork.getVersion(),
                 cover
         );
     }
