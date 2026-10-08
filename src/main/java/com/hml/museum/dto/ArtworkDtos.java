@@ -48,15 +48,15 @@ public final class ArtworkDtos {
             Long id,
             String name,
             String author,
-            LocalDateTime creationStartTime,
-            LocalDateTime creationEndTime,
+            //LocalDateTime creationStartTime,
+            //LocalDateTime creationEndTime,
             Integer conditionId,
-            String price,
+            //String price,
             Integer statusId,
             Integer primaryCategoryId,
             Integer locationCategoryId,
             String specificLocation,
-            Integer version,
+            //Integer version,
             MultimediaDtos.CoverResponse cover
     ) {
     }
