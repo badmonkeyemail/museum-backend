@@ -341,15 +341,15 @@ public class ArtworkSearchService {
                 a.getId(),
                 a.getName(),
                 a.getAuthor(),
-                a.getCreationStartTime(),
-                a.getCreationEndTime(),
+                //a.getCreationStartTime(),
+                //a.getCreationEndTime(),
                 a.getConditionId(),
-                a.getPrice(),
+                //a.getPrice(),
                 a.getStatusId(),
                 a.getPrimaryCategoryId(),
                 a.getLocationCategoryId(),
                 a.getSpecificLocation(),
-                a.getVersion(),
+                //a.getVersion(),
                 cover
         );
     }
