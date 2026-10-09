@@ -61,6 +61,7 @@ public class MultimediaService {
     private final ImageStorageService storage;
     private final ArtworkCoverService coverService;
     private final ArtworkHistoryRepository historyRepo;
+    private final MultimediaThumbnailService thumbnailService;
     private final ObjectMapper mapper;
 
 
@@ -385,6 +386,13 @@ public class MultimediaService {
         }
 
         MultimediaVariant saved = variantRepo.save(variant);
+
+        // 上传完成后由后端异步生成缩略图；前端无需再调用 generate-thumbnails。
+        if (MediaTypeIds.PHOTO == media.getMultimediaTypeId()
+                && ("ORIGINAL".equals(variant.getVariantType())
+                || "HIGH_RES".equals(variant.getVariantType()))) {
+            thumbnailService.generateAsync(artworkId, media.getId());
+        }
 
         recordHistory(
                 artworkId,
