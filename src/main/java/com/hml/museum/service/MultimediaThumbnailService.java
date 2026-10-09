@@ -7,6 +7,7 @@ import com.hml.museum.repository.ArtworkHistoryRepository;
 import com.hml.museum.repository.MultimediaRepository;
 import com.hml.museum.repository.MultimediaVariantRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
@@ -23,7 +24,7 @@ import java.util.List;
 
 /**
  * 从 HIGH_RES 优先生成三个缩略图。
- * 实际生产环境建议改成异步任务，但当前接口保持同步，便于开发调试。
+ * 正常上传由 complete 接口触发异步生成；同步 generate 方法保留给管理员重试/修复接口。
  */
 @Service
 @RequiredArgsConstructor
@@ -37,6 +38,17 @@ public class MultimediaThumbnailService {
     private final ImageStorageService storage;
     private final ArtworkHistoryRepository historyRepo;
 
+    /**
+     * 上传完成后由后台异步触发。前端不需要调用此方法。
+     */
+    @Async("thumbnailTaskExecutor")
+    public void generateAsync(Long artworkId, Long multimediaId) {
+        generate(artworkId, multimediaId);
+    }
+
+    /**
+     * 同步生成方法，仅供后台重试/修复接口调用。
+     */
     public List<MultimediaVariant> generate(
             Long artworkId,
             Long multimediaId
