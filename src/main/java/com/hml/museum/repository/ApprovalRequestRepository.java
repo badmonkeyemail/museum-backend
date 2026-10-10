@@ -9,5 +9,5 @@ import java.util.Optional;
 public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest, Long> {
     Optional<ApprovalRequest> findByApprovalNo(String approvalNo);
     List<ApprovalRequest> findByStatusOrderByCreatedAtDesc(String status);
-    List<ApprovalRequest> findByBusinessTypeAndStatusOrderByCreatedAtDesc(String businessType, String status);
+    List<ApprovalRequest> findByBusinessTypeAndStatusOrderByCreatedAtDesc(String businessType, String status);\n    List<ApprovalRequest> findByBusinessTypeOrderByCreatedAtDesc(String businessType);
 }
