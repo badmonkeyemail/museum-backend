@@ -155,9 +155,16 @@ public class ApprovalService {
         if (ApprovalDtos.OUTBOUND.equals(type) && !Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId()))
             throw new IllegalStateException("出库申请要求作品当前为库存状态: " + r.artworkId());
 
-        if (r.variantId() != null && ApprovalDtos.HIGH_RES_DOWNLOAD.equals(type)
-                && r.multimediaId() == null) {
-            throw new IllegalArgumentException("高清图下载指定 variantId 时必须同时指定 multimediaId");
+        if (ApprovalDtos.HIGH_RES_DOWNLOAD.equals(type)) {
+            if (r.multimediaId() == null || r.variantId() == null) {
+                throw new IllegalArgumentException("高清图下载必须指定 multimediaId 和 variantId");
+            }
+            MultimediaVariant v = variants.findByIdAndDeletedAndStatus(r.variantId(), 0, 1)
+                    .orElseThrow(() -> new NoSuchElementException("高清图变体不存在"));
+            if (!Objects.equals(v.getMultimediaId(), r.multimediaId())
+                    || !"HIGH_RES".equals(v.getVariantType())) {
+                throw new IllegalArgumentException("下载明细必须指向该多媒体对象的 HIGH_RES 变体");
+            }
         }
     }
 
@@ -174,7 +181,7 @@ public class ApprovalService {
 
     private String nextApprovalNo() {
         return "SP" + java.time.LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
-                + String.format("%06d", System.nanoTime() % 1_000_000);
+                + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
     }
 
     private void history(Long approvalId, String action, String from, String to, Long operator,
@@ -200,7 +207,8 @@ public class ApprovalService {
                 requestUrl, signedUrl, a.getSignedPdfSha256(), a.getRemark(),
                 a.getApprovalTime(), a.getCompletedTime(), a.getCreatedAt(),
                 list.stream().map(x -> new ApprovalDtos.ItemResponse(
-                        x.getId(), x.getArtworkId(), x.getMultimediaId(), x.getVariantId(), x.getItemData())).toList()
+                        x.getId(), x.getArtworkId(), x.getMultimediaId(), x.getVariantId(), x.getItemData())).toList(),
+                highResUrls(a, list)
         );
     }
 
