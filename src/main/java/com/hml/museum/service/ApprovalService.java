@@ -192,7 +192,7 @@ public class ApprovalService {
         h.setFromStatus(from);
         h.setToStatus(to);
         h.setOperatorId(operator);
-        h.setDetail(detail);
+        h.setDetail(toJsonDetail(detail));
         h.setPdfObjectKey(pdfKey);
         h.setIpAddress(ip);
         histories.save(h);
@@ -225,6 +225,20 @@ public class ApprovalService {
                         .map(storage::createDownloadUrl)
                         .orElseThrow(() -> new NoSuchElementException("高清图变体不存在: " + id)))
                 .toList();
+    }
+
+    private String toJsonDetail(String detail) {
+        if (detail == null || detail.isBlank()) return null;
+        try {
+            mapper.readTree(detail);
+            return detail;
+        } catch (Exception ignored) {
+            try {
+                return mapper.writeValueAsString(detail);
+            } catch (Exception e) {
+                throw new IllegalStateException("审批历史 detail JSON 序列化失败", e);
+            }
+        }
     }
 
     private String sha256(byte[] data) {
