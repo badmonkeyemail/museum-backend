@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hml.museum.dto.ApprovalDtos;
 import com.hml.museum.entity.*;
 import com.hml.museum.repository.*;
+import com.hml.museum.entity.MultimediaVariant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class ApprovalService {
     private final ImageStorageService storage;
     private final ApprovalPdfService pdfService;
     private final ObjectMapper mapper;
+    private final MultimediaVariantRepository variants;
 
     @Transactional
     public ApprovalDtos.Response create(ApprovalDtos.CreateRequest r, String ip) {
@@ -200,6 +202,21 @@ public class ApprovalService {
                 list.stream().map(x -> new ApprovalDtos.ItemResponse(
                         x.getId(), x.getArtworkId(), x.getMultimediaId(), x.getVariantId(), x.getItemData())).toList()
         );
+    }
+
+    private List<String> highResUrls(ApprovalRequest a, List<ApprovalItem> list) {
+        if (!ApprovalDtos.APPROVED.equals(a.getStatus())
+                || !ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType())) {
+            return List.of();
+        }
+        return list.stream()
+                .map(ApprovalItem::getVariantId)
+                .filter(Objects::nonNull)
+                .map(id -> variants.findByIdAndDeletedAndStatus(id, 0, 1)
+                        .map(MultimediaVariant::getObjectKey)
+                        .map(storage::createDownloadUrl)
+                        .orElseThrow(() -> new NoSuchElementException("高清图变体不存在: " + id)))
+                .toList();
     }
 
     private String sha256(byte[] data) {
