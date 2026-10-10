@@ -31,7 +31,7 @@ public class ApprovalService {
     private final ImageStorageService storage;
     private final ApprovalPdfService pdfService;
     private final ObjectMapper mapper;
-    private final MultimediaVariantRepository variants;
+    private final MultimediaVariantRepository variants;\n    private final MultimediaRepository multimedia;
 
     @Transactional
     public ApprovalDtos.Response create(ApprovalDtos.CreateRequest r, String ip) {
@@ -159,11 +159,13 @@ public class ApprovalService {
             if (r.multimediaId() == null || r.variantId() == null) {
                 throw new IllegalArgumentException("高清图下载必须指定 multimediaId 和 variantId");
             }
+            Multimedia media = multimedia.findByIdAndArtworkIdAndDeleted(r.multimediaId(), r.artworkId(), 0)
+                    .orElseThrow(() -> new IllegalArgumentException("多媒体不属于指定作品"));
             MultimediaVariant v = variants.findByIdAndDeletedAndStatus(r.variantId(), 0, 1)
                     .orElseThrow(() -> new NoSuchElementException("高清图变体不存在"));
-            if (!Objects.equals(v.getMultimediaId(), r.multimediaId())
+            if (!Objects.equals(v.getMultimediaId(), media.getId())
                     || !"HIGH_RES".equals(v.getVariantType())) {
-                throw new IllegalArgumentException("下载明细必须指向该多媒体对象的 HIGH_RES 变体");
+                throw new IllegalArgumentException("下载明细必须指向该作品多媒体对象的 HIGH_RES 变体");
             }
         }
     }
