@@ -55,7 +55,8 @@ public final class ApprovalDtos {
             java.time.LocalDateTime approvalTime,
             java.time.LocalDateTime completedTime,
             java.time.LocalDateTime createdAt,
-            List<ItemResponse> items
+            List<ItemResponse> items,
+            List<String> highResDownloadUrls
     ) {}
 
     public record ItemResponse(
