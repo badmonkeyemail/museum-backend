@@ -26,6 +26,22 @@ public class ApprovalController {
         return service.create(request, http.getRemoteAddr());
     }
 
+    @GetMapping
+    public List<ApprovalDtos.Response> list(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String businessType) {
+        if (status != null && businessType != null) {
+            return service.list(businessType, status);
+        }
+        if (status != null) {
+            return service.list(null, status);
+        }
+        if (businessType != null) {
+            return service.list(businessType, null);
+        }
+        return service.list(null, null);
+    }
+
     @GetMapping("/{id}")
     public ApprovalDtos.Response get(@PathVariable Long id) {
         return service.get(id);
