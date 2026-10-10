@@ -42,8 +42,8 @@ public class ArtworkHistory {
     @Column(name = "detail", columnDefinition = "json")
     private String detail;
 
-    @Column(name = "related_outbound_id")
-    private Long relatedOutboundId;
+    @Column(name = "related_approval_id")
+    private Long relatedApprovalId;
 
     @Column(name = "related_multimedia_id")
     private Long relatedMultimediaId;
