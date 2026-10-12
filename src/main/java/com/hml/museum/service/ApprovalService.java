@@ -1,6 +1,5 @@
 package com.hml.museum.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hml.museum.dto.ApprovalDtos;
@@ -27,7 +26,6 @@ public class ApprovalService {
     private final ApprovalItemRepository items;
     private final ApprovalHistoryRepository histories;
     private final ArtworkRepository artworks;
-    private final ArtworkStatusRepository statuses;
     private final ImageStorageService storage;
     private final ApprovalPdfService pdfService;
     private final ObjectMapper mapper;
@@ -127,10 +125,10 @@ public class ApprovalService {
         history(a.getId(), Boolean.TRUE.equals(r.approved()) ? "APPROVE" : "REJECT",
                 old, a.getStatus(), r.approverId(), r.remark(), key, ip);
 
-        if (ApprovalDtos.APPROVED.equals(a.getStatus()) && ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType())) {
-            // 下载授权在审批通过后直接返回短时效 RustFS 地址；不把 URL 持久化。
-            // 实际 URL 在 toResponse 中按当前申请明细生成。
-        }
+//        if (ApprovalDtos.APPROVED.equals(a.getStatus()) && ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType())) {
+//            // 下载授权在审批通过后直接返回短时效 RustFS 地址；不把 URL 持久化。
+//            // 实际 URL 在 toResponse 中按当前申请明细生成。
+//        }
         return toResponse(a, items.findByApprovalIdOrderByIdAsc(id));
     }
 

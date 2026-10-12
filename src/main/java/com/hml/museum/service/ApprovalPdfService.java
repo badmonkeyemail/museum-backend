@@ -1,6 +1,5 @@
 package com.hml.museum.service;
 
-import com.hml.museum.dto.ApprovalDtos;
 import com.hml.museum.entity.ApprovalRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -16,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * 生成系统审批申请 PDF。
- *
  * PDF 作为审批时的固定申请快照；审批完成后再保存管理员签字/盖章后的 PDF。
  * 当前模板使用 PDFBox 内置字体，因此字段内容使用 ASCII 安全表示。
  * 后续如果需要中文正式印章/字体，应在模板资源中加入 CJK TTF/OTF。
