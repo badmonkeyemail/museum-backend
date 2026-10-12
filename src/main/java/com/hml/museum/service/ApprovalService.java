@@ -130,6 +130,26 @@ public class ApprovalService {
     }
 
     @Transactional(readOnly = true)
+    public List<ApprovalDtos.Response> list(String businessType, String status) {
+        List<ApprovalRequest> approvalsList;
+
+        if (businessType != null && status != null) {
+            approvalsList = approvals.findByBusinessTypeAndStatusOrderByCreatedAtDesc(businessType, status);
+        } else if (businessType != null) {
+            approvalsList = approvals.findByBusinessTypeOrderByCreatedAtDesc(businessType);
+        } else if (status != null) {
+            approvalsList = approvals.findByStatusOrderByCreatedAtDesc(status);
+        } else {
+            approvalsList = approvals.findAll(org.springframework.data.domain.Sort.by(
+                    org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        }
+
+        return approvalsList.stream()
+                .map(a -> toResponse(a, items.findByApprovalIdOrderByIdAsc(a.getId())))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public ApprovalDtos.Response get(Long id) {
         ApprovalRequest a = approvals.findById(id).orElseThrow(() -> new NoSuchElementException("审批申请不存在"));
         return toResponse(a, items.findByApprovalIdOrderByIdAsc(id));
