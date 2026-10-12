@@ -80,7 +80,7 @@ public class OutboundApprovalService {
     @Transactional
     public OutboundApproval returnArtwork(Long id, Integer operatorId, String ip, String remark) {
         OutboundApproval x = repo.findById(id).orElseThrow();
-        if (x.getTargetStatusId() != ArtworkStatusIds.ON_DISPLAY)
+        if (!x.getTargetStatusId().equals(ArtworkStatusIds.ON_DISPLAY))
             throw new IllegalStateException("只有展出类型出库可以普通归还");
         Artwork a = artworks.findByIdAndDeleted(x.getArtworkId(), 0).orElseThrow();
         String before = snapshot(a);
