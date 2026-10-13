@@ -61,9 +61,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
-        String location = getExceptionLocation(e);
         log.error("发生未知系统异常 | 类型={}, 位置={}, 信息={}",
-                e.getClass().getName(), location, e.getMessage(), e);
+                e.getClass().getName(), getExceptionLocation(e), e.getMessage(), e);
         return Result.fail(ResultCode.SYSTEM_ERROR);
     }
 
