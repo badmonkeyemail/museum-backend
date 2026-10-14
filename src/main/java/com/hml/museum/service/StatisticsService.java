@@ -185,7 +185,7 @@ public class StatisticsService {
 
     public List<Map<String, Object>> approvalStatistics(LocalDate from, LocalDate to) {
         if (from != null && to != null && from.isAfter(to)) {
-            throw new IllegalArgumentException("from 不能晚于 to");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from 不能晚于 to");
         }
 
         StringBuilder sql = new StringBuilder("""
