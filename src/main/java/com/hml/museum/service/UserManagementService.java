@@ -57,6 +57,9 @@ public class UserManagementService {
     @Transactional
     public void setEnabled(long id, boolean enabled, long operatorId) {
         ensureUserExists(id);
+        if (hasSuperRole(id) && id != operatorId) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只能管理 ADMIN 用户，不能修改其他超级用户");
+        }
         if (id == operatorId && !enabled) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能停用当前登录用户");
         }
@@ -85,12 +88,20 @@ public class UserManagementService {
     }
 
     @Transactional
-    public void resetPassword(long id, String newPassword) {
+    public void resetPassword(long id, String newPassword, long operatorId) {
         ensureUserExists(id);
+        if (hasSuperRole(id) && id != operatorId) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只能重置 ADMIN 用户密码，不能重置其他超级用户密码");
+        }
         jdbc.update("UPDATE app_user SET password_hash=?, updated_at=? WHERE id=?",
                 passwordEncoder.encode(newPassword), nowUtc(), id);
         // A password reset invalidates any session belonging to that user.
         jdbc.update("UPDATE app_active_session SET user_id=NULL, token_hash=NULL, issued_at=NULL, last_seen_at=NULL, expires_at=NULL WHERE id=1 AND user_id=?", id);
+    }
+
+    private boolean hasSuperRole(long id) {
+        return !jdbc.queryForList(
+                "SELECT role_code FROM app_user_role WHERE user_id=? AND role_code='SUPER'", id).isEmpty();
     }
 
     private void ensureUserExists(long id) {
