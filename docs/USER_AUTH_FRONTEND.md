@@ -33,10 +33,15 @@ import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 
-export function useIdleLock(token: () => string | null, onSessionExpired: () => void) {
+export function useIdleLock(
+  token: () => string | null,
+  onSessionExpired: () => void,
+  idleTimeoutSeconds = 900,
+  heartbeatIntervalSeconds = 30,
+) {
   const locked = ref(false)
-  const idleTimeoutMs = 15 * 60 * 1000
-  const heartbeatMs = 30 * 1000
+  const idleTimeoutMs = idleTimeoutSeconds * 1000
+  const heartbeatMs = heartbeatIntervalSeconds * 1000
   let idleTimer: ReturnType<typeof setTimeout> | undefined
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined
 
@@ -128,4 +133,4 @@ export function useIdleLock(token: () => string | null, onSessionExpired: () => 
 }
 ```
 
-生产环境中建议把 `idleTimeoutMs` 和 `heartbeatMs` 从登录响应的 `idleTimeoutSeconds` 与 `heartbeatIntervalSeconds` 读取，而不是使用示例中的固定值。前端必须在锁屏时暂停心跳；否则服务端无法区分“用户仍在操作”和“页面已闲置锁定”。
+创建 composable 时，将登录响应中的 `idleTimeoutSeconds` 和 `heartbeatIntervalSeconds` 作为第三、第四个参数传入。前端必须在锁屏时暂停心跳；否则服务端无法区分“用户仍在操作”和“页面已闲置锁定”。
