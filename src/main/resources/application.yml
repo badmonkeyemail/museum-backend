@@ -44,3 +44,4 @@ museum:
     # 物理磁盘统计路径：填写应用实际部署环境中存在的目录。
     # 若 RustFS 在独立主机/容器，需在 RustFS 主机单独采集物理磁盘指标。
     storage-path: ${MUSEUM_STATISTICS_STORAGE_PATH:${user.dir}}
+    rustfs-refresh-ms: ${MUSEUM_STATISTICS_RUSTFS_REFRESH_MS:3600000}
