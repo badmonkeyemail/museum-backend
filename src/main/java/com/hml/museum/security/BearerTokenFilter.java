@@ -11,6 +11,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 
@@ -37,22 +38,26 @@ public class BearerTokenFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = header.substring(7).trim();
+        AuthenticatedUser user;
         try {
-            AuthenticatedUser user = authService.validateAndTouch(token);
-            var authorities = user.roles().stream()
-                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                    .toList();
-            var authentication = new UsernamePasswordAuthenticationToken(
-                    user.username(), null, authorities);
-            authentication.setDetails(user.userId());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            filterChain.doFilter(request, response);
+            user = authService.validateAndTouch(header.substring(7).trim());
         } catch (RuntimeException ex) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"message\":\"登录会话已失效，请重新登录\"}");
+            return;
+        }
+
+        var authorities = user.roles().stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .toList();
+        var authentication = new UsernamePasswordAuthenticationToken(
+                user.username(), null, authorities);
+        authentication.setDetails(user.userId());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        try {
+            filterChain.doFilter(request, response);
         } finally {
             SecurityContextHolder.clearContext();
         }
