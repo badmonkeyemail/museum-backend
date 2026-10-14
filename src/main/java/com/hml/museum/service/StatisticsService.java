@@ -2,6 +2,8 @@ package com.hml.museum.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -83,10 +85,10 @@ public class StatisticsService {
         String scope = categoryScope == null || categoryScope.isBlank()
                 ? "primary" : categoryScope.trim().toLowerCase(Locale.ROOT);
         if (!scope.equals("primary") && !scope.equals("all")) {
-            throw new IllegalArgumentException("categoryScope 仅支持 primary 或 all");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "categoryScope 仅支持 primary 或 all");
         }
         if (from != null && to != null && from.isAfter(to)) {
-            throw new IllegalArgumentException("from 不能晚于 to");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from 不能晚于 to");
         }
 
         StringBuilder joins = new StringBuilder();
@@ -220,22 +222,22 @@ public class StatisticsService {
 
     private List<String> parseDimensions(String groupBy) {
         if (groupBy == null || groupBy.isBlank()) {
-            throw new IllegalArgumentException("groupBy 必填，例如 status 或 status,condition");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "groupBy 必填，例如 status 或 status,condition");
         }
         LinkedHashSet<String> result = new LinkedHashSet<>();
         for (String raw : groupBy.split(",")) {
             String key = raw.trim().toLowerCase(Locale.ROOT);
             if (!DIMENSIONS.containsKey(key)) {
-                throw new IllegalArgumentException("不支持的统计维度: " + key
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不支持的统计维度: " + key
                         + "；支持 category、condition、status、location");
             }
             result.add(key);
         }
         if (result.isEmpty()) {
-            throw new IllegalArgumentException("至少指定一个统计维度");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "至少指定一个统计维度");
         }
         if (result.size() > 3) {
-            throw new IllegalArgumentException("一次最多支持三个统计维度");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "一次最多支持三个统计维度");
         }
         return new ArrayList<>(result);
     }
