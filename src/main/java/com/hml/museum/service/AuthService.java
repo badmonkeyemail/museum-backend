@@ -15,7 +15,6 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
@@ -60,11 +59,10 @@ public class AuthService {
         // Lock the singleton row to serialize concurrent login attempts across application instances.
         jdbc.queryForObject("SELECT id FROM app_active_session WHERE id = 1 FOR UPDATE", Integer.class);
         LocalDateTime now = nowUtc();
-        Map<String, Object> active = jdbc.queryForMap(
-                "SELECT user_id, expires_at FROM app_active_session WHERE id = 1");
-        Object expiresValue = active.get("expires_at");
-        LocalDateTime activeExpiry = toLocalDateTime(expiresValue);
-        if (active.get("user_id") != null && activeExpiry != null && activeExpiry.isAfter(now)) {
+        Integer activeCount = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM app_active_session WHERE id=1 AND user_id IS NOT NULL AND expires_at > ?",
+                Integer.class, now);
+        if (activeCount != null && activeCount > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "系统正在被其他用户使用，请稍后再试");
         }
 
@@ -175,12 +173,6 @@ public class AuthService {
     }
 
     private static LocalDateTime nowUtc() { return LocalDateTime.now(ZoneOffset.UTC); }
-
-    private static LocalDateTime toLocalDateTime(Object value) {
-        if (value instanceof LocalDateTime dt) return dt;
-        if (value instanceof java.sql.Timestamp ts) return ts.toLocalDateTime();
-        return null;
-    }
 
     private static Boolean asBoolean(Object value) {
         if (value instanceof Boolean b) return b;
