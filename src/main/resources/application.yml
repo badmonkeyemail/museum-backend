@@ -45,3 +45,12 @@ museum:
     # 若 RustFS 在独立主机/容器，需在 RustFS 主机单独采集物理磁盘指标。
     storage-path: ${MUSEUM_STATISTICS_STORAGE_PATH:${user.dir}}
     rustfs-refresh-ms: ${MUSEUM_STATISTICS_RUSTFS_REFRESH_MS:3600000}
+
+  auth:
+    # 首次启动时必须设置 MUSEUM_SUPER_PASSWORD（至少12位）；后续启动不会重置现有超级用户密码。
+    super-username: ${MUSEUM_SUPER_USERNAME:super}
+    super-password: ${MUSEUM_SUPER_PASSWORD:}
+    # 闲置锁屏默认15分钟；服务端会话租约用于识别浏览器崩溃/断电等异常退出。
+    idle-timeout-seconds: ${MUSEUM_IDLE_TIMEOUT_SECONDS:900}
+    session-lease-seconds: ${MUSEUM_SESSION_LEASE_SECONDS:120}
+    heartbeat-interval-seconds: ${MUSEUM_HEARTBEAT_INTERVAL_SECONDS:30}
