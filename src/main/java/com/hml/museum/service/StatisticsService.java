@@ -236,9 +236,6 @@ public class StatisticsService {
         if (result.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "至少指定一个统计维度");
         }
-        if (result.size() > 3) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "一次最多支持三个统计维度");
-        }
         return new ArrayList<>(result);
     }
 
