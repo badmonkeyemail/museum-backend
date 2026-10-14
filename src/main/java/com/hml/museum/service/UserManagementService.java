@@ -77,9 +77,6 @@ public class UserManagementService {
         if (enabled) {
             jdbc.update("INSERT IGNORE INTO app_user_role(user_id, role_code) VALUES (?, 'ADMIN')", id);
         } else {
-            if (id == operatorId && targetIsSuper) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能移除当前超级用户的唯一管理员权限管理能力以外的限制；如需保留业务权限，请勿移除 ADMIN");
-            }
             jdbc.update("DELETE FROM app_user_role WHERE user_id=? AND role_code='ADMIN'", id);
             if (jdbc.queryForList("SELECT role_code FROM app_user_role WHERE user_id=?", id).isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "用户至少必须保留一种权限");
