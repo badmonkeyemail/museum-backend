@@ -49,8 +49,9 @@ public class UserController {
 
     @PutMapping("/{id}/password")
     public Map<String, Object> resetPassword(@PathVariable long id,
-                                             @Valid @RequestBody PasswordResetRequest request) {
-        service.resetPassword(id, request.newPassword());
+                                             @Valid @RequestBody PasswordResetRequest request,
+                                             Authentication authentication) {
+        service.resetPassword(id, request.newPassword(), operatorId(authentication));
         return Map.of("success", true);
     }
 
