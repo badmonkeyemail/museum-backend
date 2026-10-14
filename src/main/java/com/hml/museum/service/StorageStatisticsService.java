@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 
@@ -30,6 +31,9 @@ public class StorageStatisticsService {
 
     @Value("${museum.statistics.storage-path:${user.dir}}")
     private String storagePath;
+
+    /** RustFS 全桶清单可能很大，缓存结果并按固定周期刷新。 */
+    private volatile Map<String, Object> cachedRustFsStats;
 
     public Map<String, Object> snapshot() {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -81,6 +85,24 @@ public class StorageStatisticsService {
     }
 
     private Map<String, Object> rustFsStats() {
+        Map<String, Object> cached = cachedRustFsStats;
+        if (cached != null) {
+            return new LinkedHashMap<>(cached);
+        }
+        synchronized (this) {
+            if (cachedRustFsStats == null) {
+                cachedRustFsStats = collectRustFsStats();
+            }
+            return new LinkedHashMap<>(cachedRustFsStats);
+        }
+    }
+
+    @Scheduled(fixedDelayString = "${museum.statistics.rustfs-refresh-ms:3600000}")
+    public void refreshRustFsStats() {
+        cachedRustFsStats = collectRustFsStats();
+    }
+
+    private Map<String, Object> collectRustFsStats() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("bucket", bucket);
         try {
@@ -106,7 +128,7 @@ public class StorageStatisticsService {
             result.put("objectBytes", null);
             result.put("error", "无法读取 RustFS 对象清单，请检查 RustFS 连接和桶权限");
         }
-        return result;
+        return java.util.Collections.unmodifiableMap(new LinkedHashMap<>(result));
     }
 
     private Map<String, Object> diskStats() {
