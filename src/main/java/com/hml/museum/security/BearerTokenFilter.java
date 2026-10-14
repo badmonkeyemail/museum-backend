@@ -12,6 +12,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 
@@ -41,7 +42,7 @@ public class BearerTokenFilter extends OncePerRequestFilter {
         AuthenticatedUser user;
         try {
             user = authService.validateAndTouch(header.substring(7).trim());
-        } catch (RuntimeException ex) {
+        } catch (ResponseStatusException ex) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");
