@@ -17,17 +17,17 @@ public class StatisticsController {
     private final StatisticsService service;
     private final StorageStatisticsService storageStatisticsService;
 
-    /** 藏品总览，保留旧接口以兼容现有前端。 */
-    @GetMapping("/overview")
-    public Map<String, Object> overview() {
-        return service.overview();
-    }
-
-    /** 分类统计旧接口：按所有关联分类计数。 */
-    @GetMapping("/categories")
-    public List<Map<String, Object>> categories() {
-        return service.byCategory();
-    }
+//    /** 藏品总览，保留旧接口以兼容现有前端。 */
+//    @GetMapping("/overview")
+//    public Map<String, Object> overview() {
+//        return service.overview();
+//    }
+//
+//    /** 分类统计旧接口：按所有关联分类计数。 */
+//    @GetMapping("/categories")
+//    public List<Map<String, Object>> categories() {
+//        return service.byCategory();
+//    }
 
     /**
      * 统一藏品统计接口。

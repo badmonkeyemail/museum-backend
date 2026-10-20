@@ -1,6 +1,7 @@
 package com.hml.museum.service;
 
 import com.hml.museum.dto.AuthDtos;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class AuthService {
     private final JdbcTemplate jdbc;
@@ -29,12 +31,14 @@ public class AuthService {
     private final int heartbeatIntervalSeconds;
     private final SecureRandom secureRandom = new SecureRandom();
 
+
     public AuthService(JdbcTemplate jdbc, PasswordEncoder passwordEncoder,
                       @Value("${museum.auth.session-lease-seconds:120}") int leaseSeconds,
                       @Value("${museum.auth.idle-timeout-seconds:900}") int idleTimeoutSeconds,
                       @Value("${museum.auth.heartbeat-interval-seconds:30}") int heartbeatIntervalSeconds) {
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
+
         this.leaseSeconds = Math.max(45, leaseSeconds);
         this.idleTimeoutSeconds = Math.max(60, idleTimeoutSeconds);
         this.heartbeatIntervalSeconds = Math.max(15, Math.min(heartbeatIntervalSeconds, this.leaseSeconds / 2));

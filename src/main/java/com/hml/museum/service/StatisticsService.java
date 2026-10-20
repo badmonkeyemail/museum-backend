@@ -179,7 +179,7 @@ public class StatisticsService {
         response.put("groupBy", dimensions);
         response.put("categoryScope", dimensions.contains("category") ? scope : null);
         response.put("total", total == null ? 0L : total);
-        response.put("items", normalized);
+        response.put("items", normalized);  // List<Map<String, Object>>
         return response;
     }
 
