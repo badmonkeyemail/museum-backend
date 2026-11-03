@@ -132,6 +132,13 @@ public class ApprovalService {
         history(a.getId(), Boolean.TRUE.equals(r.approved()) ? "APPROVE" : "REJECT",
                 old, a.getStatus(), r.approverId(), r.remark(), key, ip);
 
+        if (ApprovalDtos.APPROVED.equals(a.getStatus())
+                && (ApprovalDtos.OUTBOUND.equals(a.getBusinessType())
+                || ApprovalDtos.REPRODUCTION.equals(a.getBusinessType()))) {
+            // 出库/高仿制作审批通过后，立即执行状态变更并记为完成。
+            return complete(a.getId(), r.approverId(), ip, r.remark());
+        }
+
         String downloadToken = null;
         LocalDateTime downloadExpiresAt = null;
         if (ApprovalDtos.APPROVED.equals(a.getStatus())
@@ -158,6 +165,9 @@ public class ApprovalService {
         if (!ApprovalDtos.APPROVED.equals(a.getStatus())) throw new IllegalStateException("只有已通过审批才能执行");
         if (ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType()))
             throw new IllegalStateException("高清图下载审批通过后通过 Token 下载，不执行 complete()");
+        if (!ApprovalDtos.OUTBOUND.equals(a.getBusinessType())
+                && !ApprovalDtos.REPRODUCTION.equals(a.getBusinessType()))
+            throw new IllegalStateException("该业务类型不支持 complete()");
         List<ApprovalItem> list = items.findByApprovalIdOrderByIdAsc(id);
 
         if (ApprovalDtos.OUTBOUND.equals(a.getBusinessType()) || ApprovalDtos.REPRODUCTION.equals(a.getBusinessType())) {
