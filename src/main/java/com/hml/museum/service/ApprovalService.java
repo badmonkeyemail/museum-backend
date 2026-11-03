@@ -215,8 +215,14 @@ public class ApprovalService {
     private void validateItem(String type, ApprovalDtos.ItemRequest r) {
         Artwork artwork = artworks.findByIdAndDeleted(r.artworkId(), NOT_DELETED)
                 .orElseThrow(() -> new NoSuchElementException("作品不存在: " + r.artworkId()));
-        if (ApprovalDtos.OUTBOUND.equals(type) && !Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId()))
-            throw new IllegalStateException("出库申请要求作品当前为库存状态: " + r.artworkId());
+        if ((ApprovalDtos.OUTBOUND.equals(type) || ApprovalDtos.REPRODUCTION.equals(type))
+                && !Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId())) {
+            throw new IllegalStateException("出库/高仿制作申请要求作品当前为库存状态: " + r.artworkId());
+        }
+        if ((ApprovalDtos.OUTBOUND.equals(type) || ApprovalDtos.REPRODUCTION.equals(type))
+                && targetStatus(r.itemData()) == null) {
+            throw new IllegalArgumentException("出库/高仿制作申请明细必须提供 itemData.targetStatusId");
+        }
 
         if (ApprovalDtos.HIGH_RES_DOWNLOAD.equals(type)) {
             if (r.multimediaId() == null || r.variantId() == null) {
