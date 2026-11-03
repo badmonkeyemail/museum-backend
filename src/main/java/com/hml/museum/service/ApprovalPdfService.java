@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -16,7 +15,6 @@ import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import org.thymeleaf.templatemode.TemplateMode;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -73,13 +71,13 @@ public class ApprovalPdfService {
 
         model.put("approvalNo", text(request.getApprovalNo()));
         model.put("approvalTime", format(request.getCreatedAt()));
-        // 当前用户表未提供可稳定关联的姓名字段，先明确显示申请人 ID，避免虚构姓名。
+        // 当前审批数据模型只保存 applicantId，故显示 ID，不臆造申请人姓名。
         model.put("applicant", "申请人 ID：" + request.getApplicantId());
         model.put("purpose", firstText(requestData, "purpose", "use", "usage", "applicationPurpose"));
         model.put("artworkSum", items.size() + " 件");
         model.put("reason", firstText(requestData, "reason", "applyReason", "applicationReason", "description"));
         model.put("backTime", firstText(requestData, "backTime", "returnTime", "expectedReturnTime", "returnDate"));
-        // 申请 PDF 在创建时生成，审批意见、审批时间和审批人签章留空供审批环节填写。
+        // 创建申请时尚未审批，审批意见、审批时间和审批人签章留空供后续审批填写。
         model.put("result", "");
         model.put("completedTime", "");
         model.put("approver", "");
@@ -96,9 +94,10 @@ public class ApprovalPdfService {
         data.put("artworkName", text(artwork.getName()));
         data.put("condition", conditions.findById(artwork.getConditionId())
                 .map(ArtworkCondition::getName).orElse(""));
-        data.put("category", categoryPath(artwork.getPrimaryCategoryId()));
+        data.put("category", treePath(artwork.getPrimaryCategoryId(), true));
         data.put("size", text(artwork.getDimensions()));
-        String location = locationPath(artwork.getLocationCategoryId());
+
+        String location = treePath(artwork.getLocationCategoryId(), false);
         if (artwork.getSpecificLocation() != null && !artwork.getSpecificLocation().isBlank()) {
             location = location.isBlank() ? artwork.getSpecificLocation()
                     : location + " / " + artwork.getSpecificLocation();
@@ -139,27 +138,18 @@ public class ApprovalPdfService {
         }
     }
 
-    private String categoryPath(Integer id) {
-        return treePath(id, true);
-    }
-
-    private String locationPath(Integer id) {
-        return treePath(id, false);
-    }
-
     private String treePath(Integer id, boolean category) {
         if (id == null) return "";
         List<String> names = new ArrayList<>();
         Integer current = id;
         for (int i = 0; current != null && i < 6; i++) {
-            Integer lookupId = current;
             if (category) {
-                Optional<ArtworkCategory> node = categories.findById(lookupId);
+                Optional<ArtworkCategory> node = categories.findById(current);
                 if (node.isEmpty()) break;
                 names.add(node.get().getName());
                 current = node.get().getParentId();
             } else {
-                Optional<LocationCategory> node = locations.findById(lookupId);
+                Optional<LocationCategory> node = locations.findById(current);
                 if (node.isEmpty()) break;
                 names.add(node.get().getName());
                 current = node.get().getParentId();
@@ -202,11 +192,7 @@ public class ApprovalPdfService {
             log.warn("未找到中文 PDF 字体。请通过 MUSEUM_PDF_FONT_PATH 指定 .ttf/.otf 字体文件，否则 PDF 中文可能无法正常显示。");
             return;
         }
-        try {
-            builder.useFont(() -> Files.newInputStream(font), "MuseumCjk");
-        } catch (Exception e) {
-            throw new IllegalStateException("注册 PDF 中文字体失败：" + font, e);
-        }
+        builder.useFont(() -> Files.newInputStream(font), "MuseumCjk");
     }
 
     private Path configuredOrSystemFont() {
@@ -218,9 +204,8 @@ public class ApprovalPdfService {
         List<String> candidates = List.of(
                 "C:/Windows/Fonts/simhei.ttf",
                 "C:/Windows/Fonts/msyh.ttf",
-                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttf",
-                "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttf"
         );
         return candidates.stream().map(Path::of).filter(Files::isRegularFile).findFirst().orElse(null);
     }
