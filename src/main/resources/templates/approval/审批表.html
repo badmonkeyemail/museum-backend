@@ -89,7 +89,7 @@
     <p class="muted" style="margin-top: 14px;">本表由博物馆藏品管理系统生成，请在审批完成后签字或盖章。</p>
   </div>
 
-  <div class="page" th:each="item, stat : ${attachments}">
+  <div class="page" th:if="${businessType != 'HIGH_RES_DOWNLOAD'}" th:each="item, stat : ${attachments}">
     <div class="attachment-title" th:text="'附件 ' + (stat.index + 1) + '：作品信息'"></div>
     <img class="artwork-image" th:if="${item.imageDataUri != null}" th:src="${item.imageDataUri}" alt="作品缩略图"/>
     <div class="field-list">
@@ -103,5 +103,6 @@
       <div class="field-item muted"><span class="field-label">作品 ID：</span><span class="field-value" th:text="${item.artworkId}"></span></div>
     </div>
   </div>
+  <div th:if="${businessType == 'HIGH_RES_DOWNLOAD'}" th:replace="~{高清图下载审批 :: downloadPages}"></div>
 </body>
 </html>
