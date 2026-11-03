@@ -253,7 +253,7 @@ public class ApprovalService {
         histories.save(h);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ApprovalDtos.DownloadItemResponse> resolveDownloadToken(String token) {
         if (token == null || token.isBlank()) throw new IllegalArgumentException("下载 Token 不能为空");
         String hash = sha256(token.getBytes(StandardCharsets.UTF_8));
