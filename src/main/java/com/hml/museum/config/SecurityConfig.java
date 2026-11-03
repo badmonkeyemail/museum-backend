@@ -44,6 +44,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login", "/error", "/actuator/health").permitAll()
+                        // Token 本身是 256-bit 随机授权凭证；下载解析接口不要求管理员会话。
+                        .requestMatchers(HttpMethod.POST, "/api/approvals/download").permitAll()
                         .requestMatchers("/api/users/**").hasRole("SUPER")
                         .requestMatchers("/api/auth/**").authenticated()
                         .requestMatchers("/api/**").hasRole("ADMIN")
