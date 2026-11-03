@@ -64,9 +64,10 @@ public class ApprovalController {
                 signedPdf, http.getRemoteAddr());
     }
 
-    @GetMapping("/download/{token}")
-    public List<ApprovalDtos.DownloadItemResponse> downloadByToken(@PathVariable String token) {
-        return service.resolveDownloadToken(token);
+    @PostMapping("/download")
+    public List<ApprovalDtos.DownloadItemResponse> downloadByToken(
+            @Valid @RequestBody ApprovalDtos.DownloadTokenRequest request) {
+        return service.resolveDownloadToken(request.token());
     }
 
     @PostMapping("/{id}/complete")
