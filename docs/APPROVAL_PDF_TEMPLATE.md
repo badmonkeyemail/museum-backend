@@ -19,4 +19,20 @@ The path must point to an existing `.ttf` or `.otf` file. The service also check
 
 The first page contains approval number, creation time, applicant ID, purpose, item count, reason, expected return time, and blank approval/signature fields. Each approval item produces one attachment page with artwork registration number, name, condition, category path, dimensions, location path, summary, and an optional thumbnail.
 
-The current approval entity stores `applicantId`, not an applicant display name, so the form deliberately displays the ID. Purpose/reason/return-time values are read from matching keys in `request_data`; if the frontend uses different JSON property names, add those names to `ApprovalPdfService.firstText` aliases.
+The current approval entity stores `applicantId`, not an applicant display name, so the form deliberately displays the ID.
+
+The frontend's `requestData` is a JSON string. The current field mapping includes this payload shape:
+
+```json
+{
+  "purpose": "临时展览",
+  "reason": "在法国举办的绘画展览",
+  "back_time": "2026-12-10"
+}
+```
+
+- `purpose` -> PDF purpose
+- `reason` -> PDF reason
+- `back_time` -> PDF expected return time
+
+The service also retains camelCase and legacy aliases for compatibility. If the frontend changes these JSON property names, update the aliases in `ApprovalPdfService.buildModel`.
