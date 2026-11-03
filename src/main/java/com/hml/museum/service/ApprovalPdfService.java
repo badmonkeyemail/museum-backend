@@ -77,7 +77,8 @@ public class ApprovalPdfService {
         model.put("purpose", firstText(requestData, "purpose", "use", "usage", "applicationPurpose"));
         model.put("artworkSum", items.size() + " 件");
         model.put("reason", firstText(requestData, "reason", "applyReason", "applicationReason", "description"));
-        model.put("backTime", firstText(requestData, "backTime", "returnTime", "expectedReturnTime", "returnDate"));
+        // 前端 requestData 使用 snake_case 的 back_time；保留 camelCase 别名以兼容旧数据。
+        model.put("backTime", firstText(requestData, "back_time", "backTime", "returnTime", "expectedReturnTime", "returnDate"));
         // 创建申请时尚未审批，审批意见、审批时间和审批人签章留空供后续审批填写。
         model.put("result", "");
         model.put("completedTime", "");
