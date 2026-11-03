@@ -60,6 +60,8 @@ public final class ApprovalDtos {
             java.time.LocalDateTime downloadExpiresAt
     ) {}
 
+    public record DownloadTokenRequest(@NotBlank String token) {}
+
     public record DownloadItemResponse(Long variantId, String fileName, String downloadUrl) {}
 
     public record ItemResponse(
