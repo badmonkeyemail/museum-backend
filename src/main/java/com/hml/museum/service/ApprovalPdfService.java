@@ -111,7 +111,8 @@ public class ApprovalPdfService {
 
     private String thumbnailDataUri(ApprovalItem item, Artwork artwork) {
         Optional<Multimedia> media = item.getMultimediaId() == null
-                ? multimedia.findByArtworkIdAndPrimaryAndDeleted(artwork.getId(), 1, NOT_DELETED)
+                ? multimedia.findFirstByArtworkIdAndPrimaryAndMultimediaTypeIdAndDeletedAndStatusOrderBySortOrderAscIdAsc(
+                        artwork.getId(), 1, MediaTypeIds.PHOTO, NOT_DELETED, ACTIVE)
                 : multimedia.findByIdAndArtworkIdAndDeleted(
                         item.getMultimediaId(), artwork.getId(), NOT_DELETED);
         if (media.isEmpty()) return null;
