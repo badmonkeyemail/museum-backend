@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -54,7 +55,7 @@ public class ApprovalPdfService {
             try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
                 builder.useFastMode();
-                builder.withHtmlContent(html, "classpath:/templates/approval/");
+                builder.withHtmlContent(html, new ClassPathResource("templates/approval/").getURL().toExternalForm());
                 registerCjkFont(builder);
                 builder.toStream(out);
                 builder.run();
