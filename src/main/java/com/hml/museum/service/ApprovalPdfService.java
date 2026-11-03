@@ -71,6 +71,8 @@ public class ApprovalPdfService {
         JsonNode requestData = parseJson(request.getRequestData());
 
         model.put("businessType", request.getBusinessType());
+        model.put("attachments", List.of());
+        model.put("downloadAttachments", List.of());
         model.put("approvalNo", text(request.getApprovalNo()));
         model.put("approvalTime", format(request.getCreatedAt()));
         // 当前审批数据模型只保存 applicantId，故显示 ID，不臆造申请人姓名。
