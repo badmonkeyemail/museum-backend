@@ -48,7 +48,7 @@ The service also retains camelCase and legacy aliases for compatibility. If the 
 
 1. 管理员审批通过 `HIGH_RES_DOWNLOAD` 后，后端创建一条 `approval_download_grant`，生成 256-bit 随机 Token。数据库只保存 Token 的 SHA-256 哈希，不保存明文 Token。
 2. 审批决定接口响应中的 `downloadToken` 和 `downloadExpiresAt` 是明文 Token 唯一返回时机；请前端安全保存并展示给获准申请人。普通审批查询不会再次返回明文 Token。
-3. 下载接口：`GET /api/approvals/download/{token}`。后端校验 Token 哈希、授权状态、有效期和审批类型，再为每个获准的 HIGH_RES 文件生成 RustFS 短时效预签名 URL，并返回文件名及 URL。
+3. 下载接口：`POST /api/approvals/download`（JSON 请求体：`{"token":"..."}`）。后端校验 Token 哈希、授权状态、有效期和审批类型，再为每个获准的 HIGH_RES 文件生成 RustFS 短时效预签名 URL，并返回文件名及 URL。
 4. Token 在有效期内允许重复请求；每次签发下载 URL 都累计 `download_count` 并更新 `last_downloaded_at`。RustFS URL 本身仍受 `museum.storage.presign-minutes` 控制，不能把它当作 Grant Token。
 5. 默认 Token 有效期为 24 小时，可通过环境变量 `MUSEUM_APPROVAL_DOWNLOAD_TOKEN_HOURS` 配置。Token 过期后必须重新发起审批。
 
