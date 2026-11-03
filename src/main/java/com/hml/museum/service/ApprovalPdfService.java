@@ -70,6 +70,7 @@ public class ApprovalPdfService {
         Map<String, Object> model = new HashMap<>();
         JsonNode requestData = parseJson(request.getRequestData());
 
+        model.put("businessType", request.getBusinessType());
         model.put("approvalNo", text(request.getApprovalNo()));
         model.put("approvalTime", format(request.getCreatedAt()));
         // 当前审批数据模型只保存 applicantId，故显示 ID，不臆造申请人姓名。
@@ -83,10 +84,45 @@ public class ApprovalPdfService {
         model.put("result", "");
         model.put("completedTime", "");
         model.put("approver", "");
-        model.put("attachments", items.stream().map(this::buildAttachment).toList());
+        if ("HIGH_RES_DOWNLOAD".equals(request.getBusinessType())) {
+            model.put("downloadAttachments", items.stream().map(this::buildDownloadAttachment).toList());
+        } else {
+            model.put("attachments", items.stream().map(this::buildAttachment).toList());
+        }
         return model;
     }
 
+    private Map<String, Object> buildDownloadAttachment(ApprovalItem item) {
+        if (item.getVariantId() == null || item.getMultimediaId() == null) {
+            throw new IllegalArgumentException("高清图下载审批明细缺少 multimediaId 或 variantId");
+        }
+        MultimediaVariant highRes = variants.findByIdAndDeletedAndStatus(item.getVariantId(), NOT_DELETED, ACTIVE)
+                .orElseThrow(() -> new NoSuchElementException("高清图文件不存在：" + item.getVariantId()));
+        if (!"HIGH_RES".equals(highRes.getVariantType()) || !Objects.equals(highRes.getMultimediaId(), item.getMultimediaId())) {
+            throw new IllegalArgumentException("审批明细必须指向对应多媒体对象的 HIGH_RES 变体");
+        }
+        if (highRes.getFileName() == null || highRes.getFileName().isBlank()) {
+            throw new IllegalStateException("高清图变体缺少 file_name，无法生成审批附件");
+        }
+        MultimediaVariant thumb = variants.findByMultimediaIdAndVariantTypeAndDeletedAndStatus(item.getMultimediaId(), "THUMB_256", NOT_DELETED, ACTIVE)
+                .orElseThrow(() -> new NoSuchElementException("高清图审批附件缺少 THUMB_256 缩略图：" + item.getMultimediaId()));
+        Map<String, Object> data = new HashMap<>();
+        data.put("fileName", highRes.getFileName());
+        data.put("imageDataUri", imageDataUri(thumb));
+        data.put("artworkId", item.getArtworkId());
+        return data;
+    }
+
+    private String imageDataUri(MultimediaVariant variant) {
+        try (InputStream in = storage.get(variant.getObjectKey())) {
+            byte[] bytes = in.readAllBytes();
+            String contentType = variant.getContentType();
+            if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) contentType = "image/jpeg";
+            return "data:" + contentType + ";base64," + Base64.getEncoder().encodeToString(bytes);
+        } catch (Exception e) {
+            throw new IllegalStateException("读取高清图审批附件 THUMB_256 失败：" + variant.getId(), e);
+        }
+    }
     private Map<String, Object> buildAttachment(ApprovalItem item) {
         Artwork artwork = artworks.findByIdAndDeleted(item.getArtworkId(), NOT_DELETED)
                 .orElseThrow(() -> new NoSuchElementException("审批 PDF 对应作品不存在：" + item.getArtworkId()));
