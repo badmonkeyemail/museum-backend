@@ -1,6 +1,5 @@
 package com.hml.museum.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hml.museum.dto.ApprovalDtos;
 import com.hml.museum.entity.*;
@@ -38,6 +37,14 @@ public class ApprovalService {
 
     @Value("${museum.approval.download-token-hours:24}")
     private long downloadTokenHours;
+
+    /** 数据库 artwork_status 中“临时外借”的状态 ID。 */
+    @Value("${museum.artwork-status.temporary-outbound-id:0}")
+    private Integer temporaryOutboundStatusId;
+
+    /** 数据库 artwork_status 中“外借仿制”的状态 ID。 */
+    @Value("${museum.artwork-status.reproduction-loan-id:0}")
+    private Integer reproductionLoanStatusId;
 
     @Transactional(readOnly = true)
     public List<ApprovalDtos.Response> list(String businessType, String status) {
@@ -170,17 +177,21 @@ public class ApprovalService {
             throw new IllegalStateException("该业务类型不支持 complete()");
         List<ApprovalItem> list = items.findByApprovalIdOrderByIdAsc(id);
 
-        if (ApprovalDtos.OUTBOUND.equals(a.getBusinessType()) || ApprovalDtos.REPRODUCTION.equals(a.getBusinessType())) {
-            for (ApprovalItem item : list) {
-                Integer targetStatus = targetStatus(item.getItemData());
-                if (targetStatus == null) throw new IllegalArgumentException("出库/制作审批明细缺少 targetStatusId");
-                Artwork artwork = artworks.findByIdAndDeleted(item.getArtworkId(), NOT_DELETED)
-                        .orElseThrow(() -> new NoSuchElementException("作品不存在: " + item.getArtworkId()));
-                if (!Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId()))
-                    throw new IllegalStateException("作品当前已不是库存状态: " + item.getArtworkId());
-                artwork.setStatusId(targetStatus);
-                artworks.save(artwork);
-            }
+        Integer targetStatusId = targetStatusForBusinessType(a.getBusinessType());
+        if (targetStatusId == null || targetStatusId <= 0) {
+            throw new IllegalStateException("未配置业务类型 " + a.getBusinessType()
+                    + " 对应的作品目标状态 ID，请配置 museum.artwork-status");
+        }
+        if (Objects.equals(ArtworkStatusIds.IN_STORAGE, targetStatusId)) {
+            throw new IllegalStateException("临时外借/外借仿制目标状态不能配置为库存状态");
+        }
+        for (ApprovalItem item : list) {
+            Artwork artwork = artworks.findByIdAndDeleted(item.getArtworkId(), NOT_DELETED)
+                    .orElseThrow(() -> new NoSuchElementException("作品不存在: " + item.getArtworkId()));
+            if (!Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId()))
+                throw new IllegalStateException("作品当前已不是库存状态: " + item.getArtworkId());
+            artwork.setStatusId(targetStatusId);
+            artworks.save(artwork);
         }
 
         a.setStatus(ApprovalDtos.COMPLETED);
@@ -219,12 +230,7 @@ public class ApprovalService {
                 && !Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId())) {
             throw new IllegalStateException("出库/高仿制作申请要求作品当前为库存状态: " + r.artworkId());
         }
-        if ((ApprovalDtos.OUTBOUND.equals(type) || ApprovalDtos.REPRODUCTION.equals(type))
-                && targetStatus(r.itemData()) == null) {
-            throw new IllegalArgumentException("出库/高仿制作申请明细必须提供 itemData.targetStatusId");
-        }
-
-        if (ApprovalDtos.HIGH_RES_DOWNLOAD.equals(type)) {
+if (ApprovalDtos.HIGH_RES_DOWNLOAD.equals(type)) {
             if (r.multimediaId() == null || r.variantId() == null) {
                 throw new IllegalArgumentException("高清图下载必须指定 multimediaId 和 variantId");
             }
@@ -239,15 +245,13 @@ public class ApprovalService {
         }
     }
 
-    private Integer targetStatus(String json) {
-        if (json == null || json.isBlank()) return null;
-        try {
-            JsonNode n = mapper.readTree(json);
-            JsonNode x = n.get("targetStatusId");
-            return x == null || x.isNull() ? null : x.asInt();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("itemData 不是合法 JSON");
-        }
+    /**
+     * complete() 的作品状态由业务类型决定，不接受前端通过 itemData 指定。
+     */
+    private Integer targetStatusForBusinessType(String businessType) {
+        if (ApprovalDtos.OUTBOUND.equals(businessType)) return temporaryOutboundStatusId;
+        if (ApprovalDtos.REPRODUCTION.equals(businessType)) return reproductionLoanStatusId;
+        throw new IllegalArgumentException("不支持状态变更的审批业务类型: " + businessType);
     }
 
     private String nextApprovalNo() {
