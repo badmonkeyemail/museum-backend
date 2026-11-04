@@ -56,5 +56,8 @@ The service also retains camelCase and legacy aliases for compatibility. If the 
 
 ## 审批通过后的业务动作
 
-- `OUTBOUND` 和 `REPRODUCTION`：管理员上传签章 PDF 并审批通过后，后端自动调用 `complete()`，按每条明细 `itemData.targetStatusId` 更新作品 `artwork.status_id`，审批状态变为 `COMPLETED`。
+- `OUTBOUND`：管理员上传签章 PDF 并审批通过后，后端自动调用 `complete()`，将作品 `artwork.status_id` 修改为“临时外借”，审批状态变为 `COMPLETED`。
+- `REPRODUCTION`：管理员上传签章 PDF 并审批通过后，后端自动调用 `complete()`，将作品 `artwork.status_id` 修改为“外借仿制”，审批状态变为 `COMPLETED`。
+- 两种业务均不要求前端在 `ItemRequest.itemData` 中提交 `targetStatusId`；目标状态完全由后端根据 `businessType` 决定。申请创建时仍校验作品当前为“库存”。
+- 新增状态由部署环境配置实际 ID：`MUSEUM_ARTWORK_STATUS_TEMPORARY_OUTBOUND_ID`、`MUSEUM_ARTWORK_STATUS_REPRODUCTION_LOAN_ID`（分别对应 `artwork_status` 中“临时外借”“外借仿制”的 ID）。未配置时 `complete()` 会拒绝执行状态变更，避免错误写入。
 - `HIGH_RES_DOWNLOAD`：审批通过只创建下载 Grant，不调用 `complete()`，也不修改作品状态。
