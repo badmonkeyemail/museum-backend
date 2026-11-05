@@ -2,6 +2,8 @@ package com.hml.museum.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hml.museum.dto.ArtworkCategoryDtos;
+import com.hml.museum.dto.LocationCategoryDtos;
 import com.hml.museum.entity.*;
 import com.hml.museum.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.context.Context;
@@ -33,9 +37,10 @@ public class ApprovalPdfService {
             DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm");
 
     private final ArtworkRepository artworks;
-    private final ArtworkCategoryRepository categories;
     private final ArtworkConditionRepository conditions;
-    private final LocationCategoryRepository locations;
+    private final ArtworkCategoryService artworkCategoryService;
+    private final LocationCategoryService locationCategoryService;
+    private final JdbcTemplate jdbc;
     private final MultimediaRepository multimedia;
     private final MultimediaVariantRepository variants;
     private final ImageStorageService storage;
@@ -75,8 +80,8 @@ public class ApprovalPdfService {
         model.put("downloadAttachments", List.of());
         model.put("approvalNo", text(request.getApprovalNo()));
         model.put("approvalTime", format(request.getCreatedAt()));
-        // 当前审批数据模型只保存 applicantId，故显示 ID，不臆造申请人姓名。
-        model.put("applicant", "申请人 ID：" + request.getApplicantId());
+        // 申请人名称从 app_user 表读取，审批表不显示内部用户 ID。
+        model.put("applicant", applicantUsername(request.getApplicantId()));
         model.put("purpose", firstText(requestData, "purpose", "use", "usage", "applicationPurpose"));
         model.put("artworkSum", items.size() + " 件");
         model.put("reason", firstText(requestData, "reason", "applyReason", "applicationReason", "description"));
@@ -134,13 +139,20 @@ public class ApprovalPdfService {
         data.put("artworkName", text(artwork.getName()));
         data.put("condition", conditions.findById(artwork.getConditionId())
                 .map(ArtworkCondition::getName).orElse(""));
-        data.put("category", treePath(artwork.getPrimaryCategoryId(), true));
+        // 复用分类服务的 CategoryPath，使用服务定义的 "-" 分隔符。
+        String category = artwork.getPrimaryCategoryId() == null
+                ? ""
+                : artworkCategoryService.getPath(artwork.getPrimaryCategoryId()).path();
+        data.put("category", category);
         data.put("size", text(artwork.getDimensions()));
 
-        String location = treePath(artwork.getLocationCategoryId(), false);
-        if (artwork.getSpecificLocation() != null && !artwork.getSpecificLocation().isBlank()) {
-            location = location.isBlank() ? artwork.getSpecificLocation()
-                    : location + " / " + artwork.getSpecificLocation();
+        // 复用位置分类服务的 CategoryPath；具体位置作为最后一级追加。
+        String location = artwork.getLocationCategoryId() == null
+                ? ""
+                : locationCategoryService.getPath(artwork.getLocationCategoryId()).path();
+        String specificLocation = artwork.getSpecificLocation();
+        if (specificLocation != null && !specificLocation.isBlank()) {
+            location = location.isBlank() ? specificLocation : location + "-" + specificLocation;
         }
         data.put("location", location);
         data.put("description", text(artwork.getSummary()));
@@ -179,25 +191,20 @@ public class ApprovalPdfService {
         }
     }
 
-    private String treePath(Integer id, boolean category) {
-        if (id == null) return "";
-        List<String> names = new ArrayList<>();
-        Integer current = id;
-        for (int i = 0; current != null && i < 6; i++) {
-            if (category) {
-                Optional<ArtworkCategory> node = categories.findById(current);
-                if (node.isEmpty()) break;
-                names.add(node.get().getName());
-                current = node.get().getParentId();
-            } else {
-                Optional<LocationCategory> node = locations.findById(current);
-                if (node.isEmpty()) break;
-                names.add(node.get().getName());
-                current = node.get().getParentId();
+    private String applicantUsername(Long applicantId) {
+        try {
+            String username = jdbc.queryForObject(
+                    "SELECT username FROM app_user WHERE id = ?",
+                    String.class,
+                    applicantId
+            );
+            if (username == null || username.isBlank()) {
+                throw new IllegalStateException("申请人用户名为空：" + applicantId);
             }
+            return username;
+        } catch (EmptyResultDataAccessException e) {
+            throw new NoSuchElementException("申请人不存在，app_user.id=" + applicantId);
         }
-        Collections.reverse(names);
-        return String.join(" / ", names);
     }
 
     private JsonNode parseJson(String json) {
