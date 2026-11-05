@@ -45,7 +45,8 @@ public class MultimediaService {
 
     private static final Set<String> IMAGE_TYPES = Set.of(
             "image/jpeg",
-            "image/png"
+            "image/png",
+            "image/jpg"
     );
 
     private static final Set<String> PUBLIC_VARIANTS = Set.of(
@@ -92,15 +93,6 @@ public class MultimediaService {
         media.setDeleted(NOT_DELETED);
 
         media = multimediaRepo.save(media);
-
-        recordHistory(
-                artworkId,
-                "ADD_MULTIMEDIA",
-                media.getId(),
-                "新增多媒体",
-                null,
-                snapshot(media)
-        );
 
         return toResponse(media, loadVariants(media.getId()));
     }
@@ -393,15 +385,6 @@ public class MultimediaService {
                 || "HIGH_RES".equals(variant.getVariantType()))) {
             thumbnailService.generateAsync(artworkId, media.getId());
         }
-
-        recordHistory(
-                artworkId,
-                "COMPLETE_MEDIA_VARIANT",
-                media.getId(),
-                "完成媒体文件上传登记",
-                before,
-                snapshot(saved)
-        );
 
         return toVariantResponse(saved);
     }

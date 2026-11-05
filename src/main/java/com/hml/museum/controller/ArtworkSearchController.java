@@ -8,6 +8,8 @@ import com.hml.museum.service.ArtworkSearchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +20,17 @@ import java.util.List;
 public class ArtworkSearchController {
 
     private final ArtworkSearchService searchService;
+
+    @GetMapping("/{category-id}")
+    public Result<Page<ArtworkDtos.ListResponse>> pageWithCategory(@PathVariable("category-id") Integer categoryId,
+                                                                   @RequestParam(defaultValue = "0") int page,
+                                                                   @RequestParam(defaultValue = "20") int size) {
+        int actualSize = Math.min(Math.max(size, 1), 200);
+        return Result.success(ResultCode.SUCCESS,
+                searchService.getFromCategory(
+                        categoryId,
+                        PageRequest.of(page, actualSize, Sort.by("id").descending())));
+    }
 
     /** GET /api/artworks/search/fields */
     @GetMapping("/fields")

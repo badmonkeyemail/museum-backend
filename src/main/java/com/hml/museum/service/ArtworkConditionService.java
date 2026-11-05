@@ -18,13 +18,20 @@ import java.util.*;
 public class ArtworkConditionService {
     private final ArtworkConditionRepository conditionRepository;
 
+    private static final int STATUS_ENABLED = 1; //正常状态
+    private static final int STATUS_DISABLED = 0;  //停用 或 删除状态
+
     /** 查询全部，按 sortOrder 升序 */
     @Transactional(readOnly = true)
-    public List<ArtworkConditionDtos.Response> list() {
-        return conditionRepository.findAll(Sort.by(Sort.Direction.ASC, "sortOrder"))
-                .stream()
-                .map(this::toResponse)
-                .toList();
+    public List<ArtworkConditionDtos.Response> list(String status) {
+        List<ArtworkCondition> conditionList = new ArrayList<>();
+        if (status.equalsIgnoreCase("all")) {
+            conditionList = conditionRepository.findAll(Sort.by(Sort.Direction.ASC, "sortOrder"));
+        } else if (status.equalsIgnoreCase("active")) {
+            conditionList = conditionRepository.findAllByStatusOrderBySortOrderAsc(STATUS_ENABLED);
+        }
+
+        return conditionList.stream().map(this::toResponse).toList();
     }
 
     /** 按 id 查询单个 */

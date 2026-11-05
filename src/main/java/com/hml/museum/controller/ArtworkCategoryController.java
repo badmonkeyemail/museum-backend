@@ -17,9 +17,24 @@ import java.util.List;
 public class ArtworkCategoryController {
     private final ArtworkCategoryService service;
 
+    //全部
     @GetMapping("/tree")
     public Result<List<ArtworkCategoryDtos.CategoryTree>> tree() {
-        return Result.success(ResultCode.SUCCESS, service.tree());
+        return Result.success(ResultCode.SUCCESS, service.tree("all"));
+    }
+
+    //可用状态
+    @GetMapping("/valid-tree")
+    public Result<List<ArtworkCategoryDtos.CategoryTree>> getActiveTree() {
+        return Result.success(ResultCode.SUCCESS, service.tree("active"));
+    }
+
+    /**
+     * 根据分类节点 ID 获取完整父级路径。
+     */
+    @GetMapping("/{id}/path")
+    public Result<ArtworkCategoryDtos.CategoryPath> path(@PathVariable Integer id) {
+        return Result.success(ResultCode.SUCCESS, service.getPath(id));
     }
 
     @PostMapping

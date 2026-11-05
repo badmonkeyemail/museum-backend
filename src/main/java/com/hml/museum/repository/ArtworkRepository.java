@@ -10,10 +10,13 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ArtworkRepository
         extends JpaRepository<Artwork, Long>, JpaSpecificationExecutor<Artwork> {
+
+    Page<Artwork> findAllByPrimaryCategoryIdAndDeleted(Integer PrimaryCategoryId, Integer deleted, Pageable pageable);
 
     boolean existsByRegistrationNoAndDeleted(String registrationNo, Integer deleted);
 

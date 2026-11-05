@@ -10,6 +10,8 @@ import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
+import java.util.Map;
+
 /**
  * 统一响应体切面
  * 当 Controller 方法返回 null 或没有返回值（即原本使用 @ResponseStatus(HttpStatus.NO_CONTENT) 的场景）时，
@@ -41,6 +43,25 @@ public class GlobalResponseAdvice implements ResponseBodyAdvice<Object> {
             return body;
         }
 
+        // 识别 Spring 默认错误体（Map 里有 status + error）
+        if (body instanceof Map<?, ?> map) {
+            Object status = map.get("status");
+            if (status instanceof Integer statusCode && statusCode >= 400) {
+                if (statusCode == 404) {
+                    return Result.fail(ResultCode.NOT_FOUND);
+                }
+                if (statusCode == 401) {
+                    return Result.fail(ResultCode.UNAUTHORIZED);
+                }
+                if (statusCode == 403) {
+                    return Result.fail(ResultCode.FORBIDDEN);
+                }
+                // 其他 4xx/5xx
+                String errorMsg = map.get("error") != null ? map.get("error").toString() : "请求失败";
+                return Result.fail(statusCode, errorMsg);
+            }
+        }
+
         // 3. 处理 String 类型的特殊情况，防止底层转换异常
         if (body instanceof String) {
             try {
@@ -53,4 +74,6 @@ public class GlobalResponseAdvice implements ResponseBodyAdvice<Object> {
         // 4. 其他普通对象自动包裹为 Result.success(data)
         return Result.success(body);
     }
+
+
 }

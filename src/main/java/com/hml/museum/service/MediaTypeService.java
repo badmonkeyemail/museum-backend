@@ -22,6 +22,10 @@ public class MediaTypeService {
 
     private final MediaTypeRepository mediaTypeRepository;
 
+    private static final int STATUS_ENABLED = 1; //正常状态
+    private static final int STATUS_DISABLED = 0;  //停用 或 删除状态
+
+
     /** 查询全部，按 sortOrder 升序 */
     @Transactional(readOnly = true)
     public List<MediaTypeDtos.Response> list() {
@@ -34,7 +38,7 @@ public class MediaTypeService {
     // 仅返回status=1的数据
     @Transactional(readOnly = true)
     public List<MediaTypeDtos.Response> validList() {
-        return mediaTypeRepository.findAllByStatusOrderBySortOrderAsc(1)
+        return mediaTypeRepository.findAllByStatusOrderBySortOrderAsc(STATUS_ENABLED)
                 .stream()
                 .map(this::toResponse)
                 .toList();

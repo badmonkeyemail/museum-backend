@@ -1,5 +1,6 @@
 package com.hml.museum.controller;
 
+import com.hml.museum.dto.ArtworkCategoryDtos;
 import com.hml.museum.dto.LocationCategoryDtos;
 import com.hml.museum.result.Result;
 import com.hml.museum.result.ResultCode;
@@ -16,9 +17,24 @@ import java.util.List;
 public class LocationCategoryController {
     private final LocationCategoryService service;
 
+    //全部
     @GetMapping("/tree")
     public Result<List<LocationCategoryDtos.CategoryTree>> tree() {
-        return Result.success(ResultCode.SUCCESS, service.tree());
+        return Result.success(ResultCode.SUCCESS, service.tree("all"));
+    }
+
+    //可用状态
+    @GetMapping("/valid-tree")
+    public Result<List<LocationCategoryDtos.CategoryTree>> getActiveTree() {
+        return Result.success(ResultCode.SUCCESS, service.tree("active"));
+    }
+
+    /**
+     * 根据分类节点 ID 获取完整父级路径。
+     */
+    @GetMapping("/{id}/path")
+    public Result<LocationCategoryDtos.CategoryPath> path(@PathVariable Integer id) {
+        return Result.success(ResultCode.SUCCESS, service.getPath(id));
     }
 
     @PostMapping

@@ -13,6 +13,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.nio.charset.StandardCharsets;
+import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -31,6 +34,19 @@ public class ApprovalService {
     private final ObjectMapper mapper;
     private final MultimediaVariantRepository variants;
     private final MultimediaRepository multimedia;
+    private final ApprovalDownloadGrantRepository downloadGrants;
+
+    @Value("${museum.approval.download-token-hours:12}")
+    private long downloadTokenHours;
+
+    /** 数据库 artwork_status 中“临时外借”的状态 ID。 */
+    @Value("${museum.artwork-status.temporary-outbound-id:7}")
+    private Integer temporaryOutboundStatusId;
+
+    /** 数据库 artwork_status 中“外借仿制”的状态 ID。 */
+    @Value("${museum.artwork-status.reproduction-loan-id:8}")
+    private Integer reproductionLoanStatusId;
+
 
     @Transactional(readOnly = true)
     public List<ApprovalDtos.Response> list(String businessType, String status) {
@@ -125,30 +141,59 @@ public class ApprovalService {
         history(a.getId(), Boolean.TRUE.equals(r.approved()) ? "APPROVE" : "REJECT",
                 old, a.getStatus(), r.approverId(), r.remark(), key, ip);
 
-//        if (ApprovalDtos.APPROVED.equals(a.getStatus()) && ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType())) {
-//            // 下载授权在审批通过后直接返回短时效 RustFS 地址；不把 URL 持久化。
-//            // 实际 URL 在 toResponse 中按当前申请明细生成。
-//        }
-        return toResponse(a, items.findByApprovalIdOrderByIdAsc(id));
+        if (ApprovalDtos.APPROVED.equals(a.getStatus())
+                && (ApprovalDtos.OUTBOUND.equals(a.getBusinessType())
+                || ApprovalDtos.REPRODUCTION.equals(a.getBusinessType()))) {
+            // 出库/高仿制作审批通过后，立即执行状态变更并记为完成。
+            return complete(a.getId(), r.approverId(), ip, r.remark());
+        }
+
+        String downloadToken = null;
+        LocalDateTime downloadExpiresAt = null;
+        if (ApprovalDtos.APPROVED.equals(a.getStatus())
+                && ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType())) {
+            if (downloadGrants.findByApprovalId(a.getId()).isPresent()) {
+                throw new IllegalStateException("该审批申请已经生成下载授权");
+            }
+            downloadToken = newDownloadToken();
+            downloadExpiresAt = LocalDateTime.now().plusHours(downloadTokenHours);
+            ApprovalDownloadGrant grant = new ApprovalDownloadGrant();
+            grant.setApprovalId(a.getId());
+            grant.setTokenHash(sha256(downloadToken.getBytes(StandardCharsets.UTF_8)));
+            grant.setExpiresAt(downloadExpiresAt);
+            grant.setStatus("ACTIVE");
+            grant.setDownloadCount(0L);
+            downloadGrants.save(grant);
+        }
+        return toResponse(a, items.findByApprovalIdOrderByIdAsc(id), downloadToken, downloadExpiresAt);
     }
 
     @Transactional
     public ApprovalDtos.Response complete(Long id, Long operatorId, String ip, String remark) {
         ApprovalRequest a = approvals.findById(id).orElseThrow(() -> new NoSuchElementException("审批申请不存在"));
         if (!ApprovalDtos.APPROVED.equals(a.getStatus())) throw new IllegalStateException("只有已通过审批才能执行");
+        if (ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType()))
+            throw new IllegalStateException("高清图下载审批通过后通过 Token 下载，不执行 complete()");
+        if (!ApprovalDtos.OUTBOUND.equals(a.getBusinessType())
+                && !ApprovalDtos.REPRODUCTION.equals(a.getBusinessType()))
+            throw new IllegalStateException("该业务类型不支持 complete()");
         List<ApprovalItem> list = items.findByApprovalIdOrderByIdAsc(id);
 
-        if (ApprovalDtos.OUTBOUND.equals(a.getBusinessType()) || ApprovalDtos.REPRODUCTION.equals(a.getBusinessType())) {
-            for (ApprovalItem item : list) {
-                Integer targetStatus = targetStatus(item.getItemData());
-                if (targetStatus == null) throw new IllegalArgumentException("出库/制作审批明细缺少 targetStatusId");
-                Artwork artwork = artworks.findByIdAndDeleted(item.getArtworkId(), NOT_DELETED)
-                        .orElseThrow(() -> new NoSuchElementException("作品不存在: " + item.getArtworkId()));
-                if (!Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId()))
-                    throw new IllegalStateException("作品当前已不是库存状态: " + item.getArtworkId());
-                artwork.setStatusId(targetStatus);
-                artworks.save(artwork);
-            }
+        Integer targetStatusId = targetStatusForBusinessType(a.getBusinessType());
+        if (targetStatusId == null || targetStatusId <= 0) {
+            throw new IllegalStateException("未配置业务类型 " + a.getBusinessType()
+                    + " 对应的作品目标状态 ID，请配置 museum.artwork-status");
+        }
+        if (Objects.equals(ArtworkStatusIds.IN_STORAGE, targetStatusId)) {
+            throw new IllegalStateException("临时外借/外借仿制目标状态不能配置为库存状态");
+        }
+        for (ApprovalItem item : list) {
+            Artwork artwork = artworks.findByIdAndDeleted(item.getArtworkId(), NOT_DELETED)
+                    .orElseThrow(() -> new NoSuchElementException("作品不存在: " + item.getArtworkId()));
+            if (!Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId()))
+                throw new IllegalStateException("作品当前已不是库存状态: " + item.getArtworkId());
+            artwork.setStatusId(targetStatusId);
+            artworks.save(artwork);
         }
 
         a.setStatus(ApprovalDtos.COMPLETED);
@@ -159,6 +204,7 @@ public class ApprovalService {
                 remark, null, ip);
         return toResponse(a, list);
     }
+
 
     @Transactional(readOnly = true)
     public ApprovalDtos.Response get(Long id) {
@@ -183,8 +229,14 @@ public class ApprovalService {
     private void validateItem(String type, ApprovalDtos.ItemRequest r) {
         Artwork artwork = artworks.findByIdAndDeleted(r.artworkId(), NOT_DELETED)
                 .orElseThrow(() -> new NoSuchElementException("作品不存在: " + r.artworkId()));
-        if (ApprovalDtos.OUTBOUND.equals(type) && !Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId()))
-            throw new IllegalStateException("出库申请要求作品当前为库存状态: " + r.artworkId());
+        if ((ApprovalDtos.OUTBOUND.equals(type) || ApprovalDtos.REPRODUCTION.equals(type))
+                && !Objects.equals(ArtworkStatusIds.IN_STORAGE, artwork.getStatusId())) {
+            throw new IllegalStateException("出库/高仿制作申请要求作品当前为库存状态: " + r.artworkId());
+        }
+//        if ((ApprovalDtos.OUTBOUND.equals(type) || ApprovalDtos.REPRODUCTION.equals(type))
+//                && targetStatus(r.itemData()) == null) {
+//            throw new IllegalArgumentException("出库/高仿制作申请明细必须提供 itemData.targetStatusId");
+//        }
 
         if (ApprovalDtos.HIGH_RES_DOWNLOAD.equals(type)) {
             if (r.multimediaId() == null || r.variantId() == null) {
@@ -201,20 +253,34 @@ public class ApprovalService {
         }
     }
 
-    private Integer targetStatus(String json) {
-        if (json == null || json.isBlank()) return null;
-        try {
-            JsonNode n = mapper.readTree(json);
-            JsonNode x = n.get("targetStatusId");
-            return x == null || x.isNull() ? null : x.asInt();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("itemData 不是合法 JSON");
-        }
+
+//    private Integer targetStatus(String json) {
+//        if (json == null || json.isBlank()) return null;
+//        try {
+//            JsonNode n = mapper.readTree(json);
+//            JsonNode x = n.get("targetStatusId");
+//            return x == null || x.isNull() ? null : x.asInt();
+//        } catch (Exception e) {
+//            throw new IllegalArgumentException("itemData 不是合法 JSON");
+//        }
+//    }
+    /**
+     * complete() 的作品状态由业务类型决定，不接受前端通过 itemData 指定。
+     */
+    private Integer targetStatusForBusinessType(String businessType) {
+        if (ApprovalDtos.OUTBOUND.equals(businessType)) return temporaryOutboundStatusId;
+        if (ApprovalDtos.REPRODUCTION.equals(businessType)) return reproductionLoanStatusId;
+        throw new IllegalArgumentException("不支持状态变更的审批业务类型: " + businessType);
     }
 
     private String nextApprovalNo() {
-        return "SP" + java.time.LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
-                + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+//        return "SP" + java.time.LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
+//                + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+        String stringDate = java.time.LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        LocalDateTime dateTime = java.time.LocalDateTime.now();
+        String firstPart = dateTime.format(DateTimeFormatter.BASIC_ISO_DATE);
+        int secondPart = dateTime.toLocalTime().toSecondOfDay();
+        return firstPart + "-" + secondPart;
     }
 
     private void history(Long approvalId, String action, String from, String to, Long operator,
@@ -231,7 +297,45 @@ public class ApprovalService {
         histories.save(h);
     }
 
+    @Transactional
+    public List<ApprovalDtos.DownloadItemResponse> resolveDownloadToken(String token) {
+        if (token == null || token.isBlank()) throw new IllegalArgumentException("下载 Token 不能为空");
+        String hash = sha256(token.getBytes(StandardCharsets.UTF_8));
+        ApprovalDownloadGrant grant = downloadGrants
+                .findByTokenHashAndStatusAndExpiresAtAfter(hash, "ACTIVE", LocalDateTime.now())
+                .orElseThrow(() -> new NoSuchElementException("下载 Token 无效或已过期"));
+        ApprovalRequest approval = approvals.findById(grant.getApprovalId())
+                .orElseThrow(() -> new NoSuchElementException("下载授权对应的审批申请不存在"));
+        if (!ApprovalDtos.APPROVED.equals(approval.getStatus())
+                || !ApprovalDtos.HIGH_RES_DOWNLOAD.equals(approval.getBusinessType()))
+            throw new IllegalStateException("该下载授权当前不可用");
+
+        List<ApprovalDtos.DownloadItemResponse> result = items
+                .findByApprovalIdOrderByIdAsc(approval.getId()).stream()
+                .map(item -> {
+                    MultimediaVariant variant = variants.findByIdAndDeletedAndStatus(item.getVariantId(), 0, 1)
+                            .orElseThrow(() -> new NoSuchElementException("高清图文件不存在: " + item.getVariantId()));
+                    if (!"HIGH_RES".equals(variant.getVariantType())
+                            || !Objects.equals(variant.getMultimediaId(), item.getMultimediaId()))
+                        throw new IllegalStateException("审批明细与高清图文件不匹配");
+                    return new ApprovalDtos.DownloadItemResponse(
+                            variant.getId(), variant.getFileName(), storage.createDownloadUrl(variant.getObjectKey()));
+                }).toList();
+
+        // 有效期内可重复下载；每次成功签发短时效 RustFS URL 均累计次数。
+        grant.setDownloadCount(grant.getDownloadCount() + 1);
+        grant.setLastDownloadedAt(LocalDateTime.now());
+        downloadGrants.save(grant);
+        return result;
+    }
+
     private ApprovalDtos.Response toResponse(ApprovalRequest a, List<ApprovalItem> list) {
+        return toResponse(a, list, null, null);
+    }
+
+//    private ApprovalDtos.Response toResponse(ApprovalRequest a, List<ApprovalItem> list) {
+      private ApprovalDtos.Response toResponse(ApprovalRequest a, List<ApprovalItem> list,
+                                               String downloadToken, LocalDateTime downloadExpiresAt) {
         String requestUrl = a.getRequestPdfObjectKey() == null ? null : storage.createDownloadUrl(a.getRequestPdfObjectKey());
         String signedUrl = a.getSignedPdfObjectKey() == null ? null : storage.createDownloadUrl(a.getSignedPdfObjectKey());
         return new ApprovalDtos.Response(
@@ -239,26 +343,27 @@ public class ApprovalService {
                 a.getApplicantId(), a.getApproverId(), a.getRequestData(),
                 requestUrl, signedUrl, a.getSignedPdfSha256(), a.getRemark(),
                 a.getApprovalTime(), a.getCompletedTime(), a.getCreatedAt(),
+
                 list.stream().map(x -> new ApprovalDtos.ItemResponse(
                         x.getId(), x.getArtworkId(), x.getMultimediaId(), x.getVariantId(), x.getItemData())).toList(),
-                highResUrls(a, list)
+                downloadToken, downloadExpiresAt
         );
     }
 
-    private List<String> highResUrls(ApprovalRequest a, List<ApprovalItem> list) {
-        if (!ApprovalDtos.APPROVED.equals(a.getStatus())
-                || !ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType())) {
-            return List.of();
-        }
-        return list.stream()
-                .map(ApprovalItem::getVariantId)
-                .filter(Objects::nonNull)
-                .map(id -> variants.findByIdAndDeletedAndStatus(id, 0, 1)
-                        .map(MultimediaVariant::getObjectKey)
-                        .map(storage::createDownloadUrl)
-                        .orElseThrow(() -> new NoSuchElementException("高清图变体不存在: " + id)))
-                .toList();
-    }
+//    private List<String> highResUrls(ApprovalRequest a, List<ApprovalItem> list) {
+//        if (!ApprovalDtos.APPROVED.equals(a.getStatus())
+//                || !ApprovalDtos.HIGH_RES_DOWNLOAD.equals(a.getBusinessType())) {
+//            return List.of();
+//        }
+//        return list.stream()
+//                .map(ApprovalItem::getVariantId)
+//                .filter(Objects::nonNull)
+//                .map(id -> variants.findByIdAndDeletedAndStatus(id, 0, 1)
+//                        .map(MultimediaVariant::getObjectKey)
+//                        .map(storage::createDownloadUrl)
+//                        .orElseThrow(() -> new NoSuchElementException("高清图变体不存在: " + id)))
+//                .toList();
+//    }
 
     private String toJsonDetail(String detail) {
         if (detail == null || detail.isBlank()) return null;
@@ -272,6 +377,12 @@ public class ApprovalService {
                 throw new IllegalStateException("审批历史 detail JSON 序列化失败", e);
             }
         }
+    }
+
+    private String newDownloadToken() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private String sha256(byte[] data) {

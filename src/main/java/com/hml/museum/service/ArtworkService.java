@@ -66,18 +66,6 @@ public class ArtworkService {
         Artwork saved = artworks.save(artwork);
         replaceCategories(saved.getId(), request.categoryIds(), request.primaryCategoryId());
 
-        record(
-                saved,
-                "CREATE",
-                request.operatorId(),
-                null,
-                null,
-                "新增作品",
-                null,
-                snapshot(saved),
-                request.ipAddress()
-        );
-
         return toDetailResponse(saved);
     }
 
@@ -155,18 +143,6 @@ public class ArtworkService {
         String before = snapshot(artwork);
         artwork.setDeleted(DELETED);
         artworks.save(artwork);
-
-        record(
-                artwork,
-                "DELETE",
-                operatorId,
-                null,
-                null,
-                "逻辑删除作品",
-                before,
-                snapshot(artwork),
-                ipAddress
-        );
     }
 
     private ArtworkDtos.Response toDetailResponse(Artwork artwork) {

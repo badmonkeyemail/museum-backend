@@ -56,8 +56,14 @@ public final class ApprovalDtos {
             java.time.LocalDateTime completedTime,
             java.time.LocalDateTime createdAt,
             List<ItemResponse> items,
-            List<String> highResDownloadUrls
+            String downloadToken,
+            java.time.LocalDateTime downloadExpiresAt
     ) {}
+
+    public record DownloadTokenRequest(@NotBlank String token) {}
+
+    public record DownloadItemResponse(Long variantId, String fileName, String downloadUrl) {}
+
 
     public record ItemResponse(
             Long id,

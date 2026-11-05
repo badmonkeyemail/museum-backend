@@ -21,10 +21,22 @@ public class ArtworkStatusService {
 
     private final ArtworkStatusRepository statusRepository;
 
+    private static final int STATUS_ENABLED = 1; //正常状态
+    private static final int STATUS_DISABLED = 0;  //停用 或 删除状态
+
     /** 查询全部，按 sortOrder 升序 */
     @Transactional(readOnly = true)
     public List<ArtworkStatusDtos.Response> list() {
         return statusRepository.findAll(Sort.by(Sort.Direction.ASC, "sortOrder"))
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    // 仅返回status=1的数据
+    @Transactional(readOnly = true)
+    public List<ArtworkStatusDtos.Response> activeList() {
+         return statusRepository.findAllByStatusOrderBySortOrderAsc(STATUS_ENABLED)
                 .stream()
                 .map(this::toResponse)
                 .toList();

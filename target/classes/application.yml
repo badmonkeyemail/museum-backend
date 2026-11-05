@@ -2,6 +2,13 @@ spring:
   application:
     name: museum
 
+  mvc:
+    throw-exception-if-no-handler-found: true
+
+  web:
+    resources:
+      add-mappings: false   # 可选：避免把不存在的静态资源请求当成“有资源映射”而吞掉 404
+
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:13306/hml?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:root}
@@ -15,11 +22,11 @@ spring:
       hibernate:
         format_sql: true
 
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    baseline-version: 1                # 基线版本号，默认1
-    locations: classpath:db/migration
+#  flyway:
+#    enabled: true
+#    baseline-on-migrate: true
+#    baseline-version: 1                # 基线版本号，默认1
+#    locations: classpath:db/migration
 
 server:
   port: ${SERVER_PORT:9000}
@@ -53,3 +60,10 @@ museum:
     session-lease-seconds: 12000
     idle-timeout-seconds: 90000
     heartbeat-interval-seconds: 3000
+
+  approval:
+    download-token-hours: 12
+
+  artwork-status:
+    temporary-outbound-id: 7
+    reproduction-loan-id: 8

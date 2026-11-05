@@ -7,10 +7,7 @@ import com.hml.museum.repository.ArtworkRepository;
 import com.hml.museum.dto.MultimediaDtos;
 import jakarta.persistence.criteria.Path;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +35,24 @@ public class ArtworkSearchService {
 
     private final ArtworkRepository artworkRepository;
     private final ArtworkCoverService coverService;
+
+    @Transactional
+    public Page<ArtworkDtos.ListResponse> getFromCategory(Integer primaryCategoryId, Pageable pageable) {
+        Page<Artwork> page = artworkRepository.findAllByPrimaryCategoryIdAndDeleted(primaryCategoryId, NOT_DELETED, pageable);
+
+        List<Long> artworkIds = page.getContent().stream()
+                .map(Artwork::getId)
+                .toList();
+
+        Map<Long, com.hml.museum.dto.MultimediaDtos.CoverResponse> covers =
+                coverService.resolveBatch(artworkIds, MultimediaVariantTypes.THUMB_64);
+
+        List<ArtworkDtos.ListResponse> content = page.getContent().stream()
+                .map(a -> toListResponse(a, covers.get(a.getId())))
+                .toList();
+
+        return new PageImpl<>(content, pageable, page.getTotalElements());
+    }
 
     @Transactional(readOnly = true)
     public List<ArtworkSearchDtos.FieldMetadata> getFieldMetadata() {

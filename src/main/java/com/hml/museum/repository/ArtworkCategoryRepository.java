@@ -10,13 +10,10 @@ import java.util.*;
 
 public interface ArtworkCategoryRepository extends JpaRepository<ArtworkCategory, Integer> {
 
-    // 按状态查询（可选过滤）
-    List<ArtworkCategory> findByStatus(Integer status);
-
-    //查询所有状态的所有分类
+    //查询所有分类（所有状态）
     List<ArtworkCategory> findAllByOrderByParentIdAscSortOrderAscIdAsc();
 
-    //查询指定状态的所有分类
+    //查询所有分类（指定状态）
     List<ArtworkCategory> findAllByStatusOrderByParentIdAscSortOrderAscIdAsc(Integer status);
 
     //查询指定状态的分类。

@@ -8,7 +8,11 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+
+
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -57,16 +61,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理所有其他未被精确捕获的异常（兜底处理，保留您原本的逻辑并适配 ResultCode）
-     */
-    @ExceptionHandler(Exception.class)
-    public Result<Void> handleException(Exception e) {
-        log.error("发生未知系统异常 | 类型={}, 位置={}, 信息={}",
-                e.getClass().getName(), getExceptionLocation(e), e.getMessage(), e);
-        return Result.fail(ResultCode.SYSTEM_ERROR);
-    }
-
-    /**
      * 从异常堆栈中提取真正抛出异常的位置（类 + 方法 + 行号）
      * 优先取第一个非框架、非当前Handler的堆栈帧
      */
@@ -105,5 +99,44 @@ public class GlobalExceptionHandler {
                 first.getFileName(),
                 first.getLineNumber());
     }
+
+    /**
+     * 处理 404：没有匹配到任何 Handler
+     */
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public Result<Void> handleNoHandlerFoundException(NoHandlerFoundException e) {
+        log.warn("资源不存在 | path={}, method={}", e.getRequestURL(), e.getHttpMethod());
+        return Result.fail(ResultCode.NOT_FOUND);
+    }
+
+    /**
+     * 处理带 @ResponseStatus 或手动抛出的 ResponseStatusException（含 404）
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public Result<Void> handleResponseStatusException(ResponseStatusException e) {
+        HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
+        if (status == HttpStatus.NOT_FOUND) {
+            return Result.fail(ResultCode.NOT_FOUND);
+        }
+        if (status == HttpStatus.FORBIDDEN) {
+            return Result.fail(ResultCode.FORBIDDEN);
+        }
+        if (status == HttpStatus.UNAUTHORIZED) {
+            return Result.fail(ResultCode.UNAUTHORIZED);
+        }
+        // 其他状态码可以按需映射，或直接用原始信息
+        return Result.fail(e.getStatusCode().value(), e.getReason() != null ? e.getReason() : e.getMessage());
+    }
+
+    /**
+     * 处理所有其他未被精确捕获的异常（兜底处理，保留您原本的逻辑并适配 ResultCode）
+     */
+    @ExceptionHandler(Exception.class)
+    public Result<Void> handleException(Exception e) {
+        log.error("发生未知系统异常 | 类型={}, 位置={}, 信息={}",
+                e.getClass().getName(), getExceptionLocation(e), e.getMessage(), e);
+        return Result.fail(ResultCode.SYSTEM_ERROR);
+    }
+
 
 }

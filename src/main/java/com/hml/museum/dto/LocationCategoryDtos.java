@@ -88,4 +88,26 @@ public class LocationCategoryDtos {
             List<CategoryTree> children
     ) {
     }
+
+    /**
+     * 分类路径。
+     * nodes 按照：根节点 -> 当前节点的顺序返回。
+     * path 为用于直接显示的路径字符串。
+     */
+    public record CategoryPath(
+            Integer targetId,
+            List<PathNode> nodes,
+            String path
+    ) {
+    }
+
+    /**
+     * 路径中的一个节点。
+     */
+    public record PathNode(
+            Integer id,
+            String name,
+            Integer level
+    ) {
+    }
 }

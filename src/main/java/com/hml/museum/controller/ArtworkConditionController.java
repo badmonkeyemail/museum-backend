@@ -1,6 +1,7 @@
 package com.hml.museum.controller;
 
 
+import com.hml.museum.dto.ArtworkStatusDtos;
 import com.hml.museum.result.Result;
 import com.hml.museum.result.ResultCode;
 import com.hml.museum.service.ArtworkConditionService;
@@ -27,12 +28,22 @@ public class ArtworkConditionController {
      *     response.setHeader(HttpHeaders.PRAGMA, "no-cache");
      *     response.setHeader(HttpHeaders.EXPIRES, "0");
      * */
+//    @GetMapping
+//    public Result<List<ArtworkConditionDtos.Response>> list(HttpServletResponse response) {
+//        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+//        response.setHeader(HttpHeaders.PRAGMA, "no-cache");
+//        response.setHeader(HttpHeaders.EXPIRES, "0");
+//        return Result.success(ResultCode.SUCCESS, service.list());
+//    }
+    /** 查询全部 */
     @GetMapping
-    public Result<List<ArtworkConditionDtos.Response>> list(HttpServletResponse response) {
-        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
-        response.setHeader(HttpHeaders.PRAGMA, "no-cache");
-        response.setHeader(HttpHeaders.EXPIRES, "0");
-        return Result.success(ResultCode.SUCCESS, service.list());
+    public Result<List<ArtworkConditionDtos.Response>> list() {
+        return Result.success(ResultCode.SUCCESS, service.list("all"));
+    }
+
+    @GetMapping("/valid-list")
+    public Result<List<ArtworkConditionDtos.Response>> getActiveList() {
+        return Result.success(ResultCode.SUCCESS, service.list("active"));
     }
 
     /** 查询单个 */
