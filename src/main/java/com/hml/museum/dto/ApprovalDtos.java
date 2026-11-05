@@ -22,8 +22,7 @@ public final class ApprovalDtos {
     public record ItemRequest(
             @NotNull Long artworkId,
             Long multimediaId,
-            Long variantId,
-            String itemData
+            Long variantId
     ) {}
 
     public record CreateRequest(
