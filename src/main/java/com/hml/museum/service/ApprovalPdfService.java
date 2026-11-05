@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
-import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import org.thymeleaf.templatemode.TemplateMode;
@@ -44,7 +44,7 @@ public class ApprovalPdfService {
     @Value("${museum.pdf.font-path:}")
     private String fontPath;
 
-    private final TemplateEngine templateEngine = createTemplateEngine();
+    private final SpringTemplateEngine templateEngine = createTemplateEngine();
 
     public byte[] generate(ApprovalRequest request, List<ApprovalItem> items) {
         try {
@@ -251,14 +251,14 @@ public class ApprovalPdfService {
         return candidates.stream().map(Path::of).filter(Files::isRegularFile).findFirst().orElse(null);
     }
 
-    private static TemplateEngine createTemplateEngine() {
+    private static SpringTemplateEngine createTemplateEngine() {
         ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
         resolver.setPrefix("templates/approval/");
         resolver.setSuffix(".html");
         resolver.setTemplateMode(TemplateMode.HTML);
         resolver.setCharacterEncoding("UTF-8");
         resolver.setCacheable(true);
-        TemplateEngine engine = new TemplateEngine();
+        SpringTemplateEngine engine = new SpringTemplateEngine();
         engine.setTemplateResolver(resolver);
         return engine;
     }
