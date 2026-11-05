@@ -9,4 +9,7 @@ public final class ArtworkStatusIds {
     public static final Integer GIFTED = 4;       // 馈赠
     public static final Integer PUBLICATION = 5;  // 出版物
     public static final Integer AUCTION = 6;      // 拍卖
+    public static final Integer LEND = 7;         // 外借
+    public static final Integer IMITATION = 8;    // 仿制
+
 }
