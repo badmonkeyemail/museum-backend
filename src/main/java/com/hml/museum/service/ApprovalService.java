@@ -100,7 +100,6 @@ public class ApprovalService {
             x.setArtworkId(item.artworkId());
             x.setMultimediaId(item.multimediaId());
             x.setVariantId(item.variantId());
-            x.setItemData(item.itemData());
             savedItems.add(items.save(x));
         }
 
