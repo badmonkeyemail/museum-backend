@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>审批表</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "MuseumCjk", "SimSun", "宋体", serif;
+      color: #000;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .page {
+      width: 210mm;
+      height: 297mm;
+      padding: 40px 50px;
+      position: relative;
+      page-break-after: always;
+      overflow: hidden;
+    }
+    .page:last-child { page-break-after: auto; }
+    .title {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 12px;
+      margin: 10px 0 36px;
+    }
+    .form-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      border: 1.5px solid #000;
+    }
+    .form-table td {
+      border: 1px solid #000;
+      vertical-align: middle;
+      padding: 8px 12px;
+      overflow-wrap: break-word;
+    }
+    .label-cell {
+      width: 110px;
+      text-align: center;
+      font-size: 15px;
+      padding: 12px 8px !important;
+      white-space: nowrap;
+    }
+    .value-cell { height: 42px; }
+    .double-label {
+      width: 110px;
+      text-align: center;
+      font-size: 15px;
+      padding: 12px 8px !important;
+    }
+    .double-value { height: 84px; vertical-align: top !important; }
+    .reason-value { height: 220px; vertical-align: top !important; white-space: pre-wrap; }
+    .attachment-title { font-size: 16px; margin-bottom: 20px; font-weight: bold; }
+    .artwork-image {
+      display: block;
+      max-width: 320px;
+      max-height: 300px;
+      margin: 0 0 28px 20px;
+      border: 1px solid #ddd;
+    }
+    .field-list { margin: 10px 0 0 10px; }
+    .field-item { font-size: 15px; margin-bottom: 16px; line-height: 1.6; }
+    .field-label { display: inline-block; min-width: 100px; font-weight: bold; }
+    .field-value { white-space: pre-wrap; overflow-wrap: break-word; }
+    .muted { color: #666; }
+    .download-page { page-break-after: always; }
+    .download-page:last-child { page-break-after: auto; }
+    .download-heading { font-size: 18px; font-weight: bold; margin-bottom: 24px; }
+    .download-thumb { display: block; max-width: 440px; max-height: 420px; margin: 10px auto 34px; border: 1px solid #ddd; }
+    .download-file { font-size: 16px; line-height: 1.8; margin: 24px 0; overflow-wrap: break-word; }
+    .download-label { font-weight: bold; display: inline-block; min-width: 110px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1 class="title">审 批 表</h1>
+    <table class="form-table">
+      <tr><td class="label-cell">编号</td><td class="value-cell" th:text="${approvalNo}"></td></tr>
+      <tr><td class="label-cell">申请时间</td><td class="value-cell" th:text="${approvalTime}"></td></tr>
+      <tr><td class="double-label">申请人</td><td class="double-value" th:text="${applicant}"></td></tr>
+      <tr><td class="label-cell">申请用途</td><td class="value-cell" th:text="${purpose}"></td></tr>
+      <tr><td class="label-cell">审批数量</td><td class="value-cell" th:text="${artworkSum}"></td></tr>
+      <tr><td class="label-cell">申请事由</td><td class="reason-value" th:text="${reason}"></td></tr>
+      <tr><td class="label-cell">归还时间</td><td class="value-cell" th:text="${backTime}"></td></tr>
+      <tr><td class="double-label">审批意见</td><td class="double-value" th:text="${result}"></td></tr>
+      <tr><td class="label-cell">审批时间</td><td class="value-cell" th:text="${completedTime}"></td></tr>
+      <tr><td class="double-label">审批人签章</td><td class="double-value" th:text="${approver}"></td></tr>
+    </table>
+    <p class="muted" style="margin-top: 14px;">本表由博物馆藏品管理系统生成，请在审批完成后签字或盖章。</p>
+  </div>
+
+  <div class="page" th:if="${businessType != 'HIGH_RES_DOWNLOAD'}" th:each="item, stat : ${attachments}">
+    <div class="attachment-title" th:text="'附件 ' + (stat.index + 1) + '：作品信息'"></div>
+    <img class="artwork-image" th:if="${item.imageDataUri != null}" th:src="${item.imageDataUri}" alt="作品缩略图"/>
+    <div class="field-list">
+      <div class="field-item"><span class="field-label">作品登记号：</span><span class="field-value" th:text="${item.registrationNo}"></span></div>
+      <div class="field-item"><span class="field-label">作品名称：</span><span class="field-value" th:text="${item.artworkName}"></span></div>
+      <div class="field-item"><span class="field-label">完好程度：</span><span class="field-value" th:text="${item.condition}"></span></div>
+      <div class="field-item"><span class="field-label">作品分类：</span><span class="field-value" th:text="${item.category}"></span></div>
+      <div class="field-item"><span class="field-label">作品尺寸：</span><span class="field-value" th:text="${item.size}"></span></div>
+      <div class="field-item"><span class="field-label">原始位置：</span><span class="field-value" th:text="${item.location}"></span></div>
+      <div class="field-item"><span class="field-label">作品简述：</span><span class="field-value" th:text="${item.description}"></span></div>
+      <div class="field-item muted"><span class="field-label">作品 ID：</span><span class="field-value" th:text="${item.artworkId}"></span></div>
+    </div>
+  </div>
+  <div th:if="${businessType == 'HIGH_RES_DOWNLOAD'}" th:replace="~{高清图下载审批 :: downloadPages}"></div>
+</body>
+</html>
