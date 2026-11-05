@@ -25,6 +25,14 @@ server:
   port: ${SERVER_PORT:9000}
 
 museum:
+  approval:
+    download-token-hours: ${MUSEUM_APPROVAL_DOWNLOAD_TOKEN_HOURS:24}
+
+  artwork-status:
+    # 请填写 artwork_status 表中新增状态的实际 ID。
+    temporary-outbound-id: ${MUSEUM_ARTWORK_STATUS_TEMPORARY_OUTBOUND_ID:0}
+    reproduction-loan-id: ${MUSEUM_ARTWORK_STATUS_REPRODUCTION_LOAN_ID:0}
+
   storage:
     endpoint: ${RUSTFS_ENDPOINT:http://127.0.0.1:19000}
     access-key: ${RUSTFS_ACCESS_KEY:rustfsadmin}
