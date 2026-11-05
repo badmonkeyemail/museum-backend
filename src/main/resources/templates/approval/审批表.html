@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8"/>
   <title>审批表</title>
   <style>
     @page { size: A4; margin: 0; }
@@ -96,7 +96,7 @@
   </div>
 
   <div class="page" th:if="${businessType != 'HIGH_RES_DOWNLOAD'}" th:each="item, stat : ${attachments}">
-    <div class="attachment-title" th:text="'附件 ' + (stat.index + 1) + '：作品信息'"></div>
+    <div class="attachment-title">附件：作品信息</div>
     <img class="artwork-image" th:if="${item.imageDataUri != null}" th:src="${item.imageDataUri}" alt="作品缩略图"/>
     <div class="field-list">
       <div class="field-item"><span class="field-label">作品登记号：</span><span class="field-value" th:text="${item.registrationNo}"></span></div>
