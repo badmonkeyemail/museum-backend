@@ -140,12 +140,12 @@ public class ApprovalService {
         history(a.getId(), Boolean.TRUE.equals(r.approved()) ? "APPROVE" : "REJECT",
                 old, a.getStatus(), r.approverId(), r.remark(), key, ip);
 
-        if (ApprovalDtos.APPROVED.equals(a.getStatus())
-                && (ApprovalDtos.OUTBOUND.equals(a.getBusinessType())
-                || ApprovalDtos.REPRODUCTION.equals(a.getBusinessType()))) {
-            // 出库/高仿制作审批通过后，立即执行状态变更并记为完成。
-            return complete(a.getId(), r.approverId(), ip, r.remark());
-        }
+        // if (ApprovalDtos.APPROVED.equals(a.getStatus())
+        //         && (ApprovalDtos.OUTBOUND.equals(a.getBusinessType())
+        //         || ApprovalDtos.REPRODUCTION.equals(a.getBusinessType()))) {
+        //     // 出库/高仿制作审批通过后，立即执行状态变更并记为完成。
+        //     return complete(a.getId(), r.approverId(), ip, r.remark());
+        // }
 
         String downloadToken = null;
         LocalDateTime downloadExpiresAt = null;
